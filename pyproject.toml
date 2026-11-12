@@ -25,6 +25,7 @@ dev = [
     "pytest-cov==7.1.0",
     "pytest-socket==0.8.1",
     "respx==0.23.1",
+    "httpx2==2.16.0",
     "ruff==0.17.4",
     "mypy==2.4.1",
 ]
@@ -40,7 +41,7 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "W"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["app", "tests"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -53,3 +54,4 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["backend/tests"]
 pythonpath = ["backend"]
+markers = ["real_providers: opt out of the autouse fake-provider fixture"]

@@ -2,14 +2,14 @@
 
 ## Status
 
-Task 0 (Recon, LLM proxy probe, repo hygiene) and Task 1 (Backend scaffold &
-config) completed 2026-11-12. Next: Task 2 (Providers).
+Task 0 (Recon), Task 1 (Backend scaffold & config) and Task 2 (LLM & embedding
+providers) completed 2026-11-12. Next: Task 3 (Corpus + chunking).
 
 ## Checklist
 
 - [x] 0 Recon — repo hygiene, corpus analysis, LLM proxy probe, requirements
 - [x] 1 Scaffold — FastAPI app skeleton, pyproject.toml, test setup
-- [ ] 2 Providers — LLM + embedding adapters (OpenAI-compatible)
+- [x] 2 Providers — LLM + embedding adapters (OpenAI-compatible)
 - [ ] 3 Corpus + chunking — loader, structure-aware chunker
 - [ ] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
 - [ ] 5 Plan + Tools — planner + typed local tool registry
@@ -59,6 +59,18 @@ config) completed 2026-11-12. Next: Task 2 (Providers).
 9. **pytest-socket mode** — use `socket_allow_hosts(allowed=["127.0.0.1","::1"])`
    (blocks outbound `.connect()` only) rather than `disable_socket`, because the
    full socket-creation block breaks asyncio's self-pipe on Windows.
+10. **Provider layer (Task 2)** — `LLMClient`/`EmbeddingProvider` Protocols +
+    OpenAI impls on `AsyncOpenAI` (timeout from settings, `max_retries=0`). Structured
+    output probes json_schema once and caches the mode (JSON-mode fallback + one
+    repair retry); native tool calling; error mapping (401/403→configuration,
+    429→rate_limited, timeout→provider_timeout, 5xx→provider_error) with a
+    `retryable` flag; capped exponential backoff + jitter; concurrency semaphore;
+    embeddings chunked at 100 with bounded concurrency.
+11. **Test transport & fakes (Task 2)** — openai 3.x uses `httpx2` 2.16.0; tests
+    mock it with `httpx2.MockTransport` (added to dev extras). Fakes live in
+    `backend/tests/fakes/` (FakeLLMClient raises on unscripted; FakeEmbeddingProvider
+    is deterministic hash-based); an autouse conftest fixture installs them (opt
+    out via `@pytest.mark.real_providers`); `LLM_PROVIDER=fake` selects them at runtime.
 
 ## Known issues
 
