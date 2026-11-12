@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–5 completed 2026-11-12. Next: Task 6 (Review + Answer + orchestrator).
+Tasks 0–6 completed 2026-11-12. Next: Task 7 (/ask API).
 
 ## Checklist
 
@@ -12,7 +12,7 @@ Tasks 0–5 completed 2026-11-12. Next: Task 6 (Review + Answer + orchestrator).
 - [x] 3 Corpus + chunking — loader, structure-aware chunker
 - [x] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
 - [x] 5 Plan + Tools — planner + typed local tool registry
-- [ ] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
+- [x] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
 - [ ] 7 /ask API — FastAPI routes (/health, /ask) + schemas
 - [ ] 8 Eval harness + tuning — evaluation of the public questions
 - [ ] 9 React UI — chat frontend
@@ -115,6 +115,19 @@ BM25 contributing exact-term recall.
     synthesizes a `Draft` with claim-reference validation (one repair retry).
     Prompts are versioned templates in `agent/prompts/`. `IndexManager` now exposes
     `chunks` + `glossary_entries` so Task 6 can wire the tools.
+15. **Review + Answer + orchestrator (Task 6)** — `Reviewer` (Stage 4) runs a
+    separate LLM audit plus deterministic checks (`missing_numbers` verifies every
+    number in a claim appears verbatim in its cited evidence/tool text); merged
+    `Review{verdict,unsupported_claims,ambiguity_flags}`. `Answerer` (Stage 5) is
+    pure code: drops unsupported claims, handles insufficient-evidence, builds
+    Markdown with `[Sx]` markers + a `Sources` section naming files/sections, and
+    appends `MEDICAL_DISCLAIMER`. `PipelineContext`/`Pipeline` enforce the strict
+    Plan→Retrieve→Tools→Review→Answer order (out-of-scope skips still emit events),
+    time each stage into `StageEvent`s, enforce `REQUEST_TIMEOUT_S`, and build the
+    full Section 9 `AskResponse` (`answer/sources/citations/disclaimer/plan/
+    tool_calls/review/retrieval_mode/trace_id/usage/latency_ms`). `TokenTrackingLLMClient`
+    accumulates token usage; `ToolRunner` exposes `last_tool_results`; `Retriever`
+    exposes `retrieval_mode`.
 
 ## Known issues
 

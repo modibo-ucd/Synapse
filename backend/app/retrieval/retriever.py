@@ -31,6 +31,10 @@ class Retriever:
         self._token_budget = token_budget
         self._dense_available = dense_available
 
+    @property
+    def retrieval_mode(self) -> RetrievalMode:
+        return "hybrid" if self._dense_available else "bm25_only"
+
     async def run(self, plan: Plan) -> Evidence:
         """Retrieve for every sub-goal in parallel, then dedupe and budget."""
         per_goal = await asyncio.gather(*(self._retrieve_goal(g) for g in plan.sub_goals))

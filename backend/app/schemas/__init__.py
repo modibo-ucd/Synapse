@@ -1,7 +1,10 @@
 """Pydantic v2 request/response and domain models."""
 
 from app.schemas.domain import (
+    AnswerAssembly,
+    AskResponse,
     Chunk,
+    Citation,
     Claim,
     CorpusDocument,
     Draft,
@@ -9,12 +12,18 @@ from app.schemas.domain import (
     EvidenceChunk,
     GlossaryEntry,
     Plan,
+    Review,
     SourceType,
     SubGoal,
+    ToolCallRecord,
+    Usage,
 )
 
 __all__ = [
+    "AnswerAssembly",
+    "AskResponse",
     "Chunk",
+    "Citation",
     "Claim",
     "CorpusDocument",
     "Draft",
@@ -22,6 +31,9 @@ __all__ = [
     "EvidenceChunk",
     "GlossaryEntry",
     "Plan",
+    "Review",
     "SourceType",
     "SubGoal",
+    "ToolCallRecord",
+    "Usage",
 ]

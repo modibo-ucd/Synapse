@@ -65,6 +65,13 @@ class AgentError(AppError):
     status_code = 502
 
 
+class PipelineTimeoutError(AppError):
+    """The whole pipeline exceeded the hard request timeout."""
+
+    code = "pipeline_timeout"
+    status_code = 504
+
+
 def error_response(code: str, message: str, request_id: str | None) -> dict[str, Any]:
     """Build the single error JSON shape used by every handler."""
     return {"error": {"code": code, "message": message, "request_id": request_id}}

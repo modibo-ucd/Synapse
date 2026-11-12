@@ -58,6 +58,11 @@ class ToolRunner:
         self._registry = registry
         self._max_tool_calls = max_tool_calls
         self._tool_timeout_s = tool_timeout_s
+        self._last_tool_results: list[ToolResult] = []
+
+    @property
+    def last_tool_results(self) -> list[ToolResult]:
+        return list(self._last_tool_results)
 
     async def run(self, plan: Plan, evidence: Evidence) -> Draft:
         messages: Messages = [
@@ -67,6 +72,7 @@ class ToolRunner:
         tool_specs = self._registry.specs()
         tool_result_ids: set[str] = set()
         total_calls = 0
+        all_results: list[ToolResult] = []
 
         while total_calls < self._max_tool_calls:
             result = await self._llm.chat_with_tools(messages, tool_specs)
@@ -103,6 +109,7 @@ class ToolRunner:
                 }
             )
             executed: list[ToolResult] = await asyncio.gather(*coroutines)
+            all_results.extend(executed)
             for index, tool_result in enumerate(executed):
                 tool_result_ids.add(tool_result.tool_result_id)
                 messages.append(
@@ -123,6 +130,7 @@ class ToolRunner:
             messages.append({"role": "user", "content": _draft_repair_message()})
             repaired = (await self._llm.generate_structured(messages, Draft)).parsed
             cleaned, _ = clean_draft(repaired, evidence_ids, tool_result_ids)
+        self._last_tool_results = all_results
         return cleaned
 
     def _build_user_message(self, plan: Plan, evidence: Evidence) -> str:
