@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–4 completed 2026-11-12. Next: Task 5 (Plan + Tools).
+Tasks 0–5 completed 2026-11-12. Next: Task 6 (Review + Answer + orchestrator).
 
 ## Checklist
 
@@ -11,7 +11,7 @@ Tasks 0–4 completed 2026-11-12. Next: Task 5 (Plan + Tools).
 - [x] 2 Providers — LLM + embedding adapters (OpenAI-compatible)
 - [x] 3 Corpus + chunking — loader, structure-aware chunker
 - [x] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
-- [ ] 5 Plan + Tools — planner + typed local tool registry
+- [x] 5 Plan + Tools — planner + typed local tool registry
 - [ ] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
 - [ ] 7 /ask API — FastAPI routes (/health, /ask) + schemas
 - [ ] 8 Eval harness + tuning — evaluation of the public questions
@@ -102,6 +102,19 @@ Tasks 0–4 completed 2026-11-12. Next: Task 5 (Plan + Tools).
 All four expected source files and the clinically relevant sections appear in the
 top fused results; dense embeddings dominate for these semantic questions, with
 BM25 contributing exact-term recall.
+14. **Plan + Tools (Task 5)** — `Planner` (Stage 1) sanitizes input, calls the LLM
+    with structured output (`Plan`), and semantically validates 1..MAX_SUB_GOALS
+    sub-goals with one repair retry then `AgentError`. `ToolRegistry` allowlist
+    (typed Pydantic args/result, timeout, errors-as-results) with three local tools:
+    `glossary_lookup` (exact + `difflib` fuzzy), `label_section_lookup`
+    (heading-path match + synonyms) and `threshold_check` (conservative regex
+    threshold extraction; eGFR 25 vs "below 30" → `contraindicated`; `unknown`
+    unless certain; never outside knowledge). `ToolRunner` (Stage 3) runs
+    model-chosen tools via native function calling (parallel, bounded by
+    MAX_TOOL_CALLS), treats evidence/tool text as untrusted delimited data, then
+    synthesizes a `Draft` with claim-reference validation (one repair retry).
+    Prompts are versioned templates in `agent/prompts/`. `IndexManager` now exposes
+    `chunks` + `glossary_entries` so Task 6 can wire the tools.
 
 ## Known issues
 

@@ -99,3 +99,22 @@ class Evidence(BaseModel):
 
     chunks: list[EvidenceChunk] = Field(default_factory=list)
     retrieval_mode: RetrievalMode = "hybrid"
+
+
+class Claim(BaseModel):
+    """A single grounded claim, referencing evidence and/or tool results."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    text: str
+    evidence_ids: list[str] = Field(default_factory=list)
+    tool_result_ids: list[str] = Field(default_factory=list)
+
+
+class Draft(BaseModel):
+    """Stage 3 output: a tool-augmented draft with grounded claims + markdown."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    claims: list[Claim] = Field(default_factory=list)
+    markdown: str = ""

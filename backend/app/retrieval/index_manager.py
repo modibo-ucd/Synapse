@@ -22,6 +22,7 @@ from app.retrieval.hybrid import HybridSearcher, build_abbreviation_map
 from app.retrieval.loader import load_documents, load_glossary
 from app.retrieval.retriever import Retriever
 from app.retrieval.vector_index import NumpyVectorIndex
+from app.schemas.domain import Chunk, GlossaryEntry
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,8 @@ class IndexManager:
         self._task: asyncio.Task[None] | None = None
         self._retriever: Retriever | None = None
         self._drug_names: set[str] = set()
+        self._chunks: list[Chunk] = []
+        self._glossary: list[GlossaryEntry] = []
 
     @property
     def status(self) -> str:
@@ -96,6 +99,14 @@ class IndexManager:
     @property
     def drug_names(self) -> set[str]:
         return self._drug_names
+
+    @property
+    def chunks(self) -> list[Chunk]:
+        return self._chunks
+
+    @property
+    def glossary_entries(self) -> list[GlossaryEntry]:
+        return self._glossary
 
     def start(self) -> None:
         """Kick off the build as a background task (used by the app lifespan)."""
@@ -139,6 +150,8 @@ class IndexManager:
             return
 
         glossary = load_glossary(Path(self._settings.corpus_dir))
+        self._chunks = chunks
+        self._glossary = glossary
         bm25 = BM25Index([chunk.embedding_text for chunk in chunks])
         abbreviations = build_abbreviation_map(glossary)
         self._drug_names = {chunk.drug_name for chunk in chunks}

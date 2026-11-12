@@ -2,7 +2,9 @@
 
 from app.schemas.domain import (
     Chunk,
+    Claim,
     CorpusDocument,
+    Draft,
     Evidence,
     EvidenceChunk,
     GlossaryEntry,
@@ -13,7 +15,9 @@ from app.schemas.domain import (
 
 __all__ = [
     "Chunk",
+    "Claim",
     "CorpusDocument",
+    "Draft",
     "Evidence",
     "EvidenceChunk",
     "GlossaryEntry",
