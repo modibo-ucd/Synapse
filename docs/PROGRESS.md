@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–11 completed 2026-11-12. Next: Task 12 (streaming trace).
+Tasks 0–14 completed 2026-11-12. Next: Task 15 (semantic cache + limits).
 
 ## Checklist
 
@@ -18,9 +18,9 @@ Tasks 0–11 completed 2026-11-12. Next: Task 12 (streaming trace).
 - [x] 9 React UI — chat frontend
 - [x] 10 Dockerfile — multi-stage build, graded command
 - [x] 11 Submission gate — Definition of Done checklist
-- [ ] 12 Streaming trace — SSE stage events + trace panel
-- [ ] 13 Interactive citations — hover/focus preview
-- [ ] 14 Comparison matrix + eGFR widget
+- [x] 12 Streaming trace — SSE stage events + trace panel
+- [x] 13 Interactive citations — hover/focus preview
+- [x] 14 Comparison matrix + eGFR widget
 - [ ] 15 Semantic cache + limits
 - [ ] 16 Hardening — errors, timeouts, non-root user, sanitization
 - [ ] 17 E2E smoke (optional) — Playwright
@@ -240,6 +240,45 @@ Clean-clone test: `git clone` into a temp folder outside the project, copied the
 `.env`, ran the exact graded command (build **645s**, image **415 MB**), `/health` 200
 in **8.8s**, index ready in **17.9s**, and all 4 public questions returned 200 with the
 expected sources and `pass` verdicts — matching `docs/eval_results.md`.
+
+### Task 12 Streaming trace (2026-11-12)
+
+Added `POST /ask/stream`: SSE that emits one `stage` event per StageEvent (stage,
+status, duration_ms, UI-safe `summary` + structured `details`: sub-goals, retrieved
+chunks/source files with ranks, tool names + args + status, review verdict) and then a
+final `result` event; the pipeline task is cancelled on client disconnect. `StageEvent`
+gained a `details` field and `PipelineContext`/`Pipeline` an `on_event` callback.
+Frontend: `streamAskQuestion` (fetch + ReadableStream SSE parser), an animated
+`TracePanel` (5 stages, pending/running/done/skipped, durations, expandable details,
+`prefers-reduced-motion`), and automatic fallback to `/ask` when streaming fails.
+Tests: SSE event order + disconnect cancellation (blocking fake) + panel rendering +
+fallback. Verified in Docker: `stage_events=5 result_events=1`, `/ask` unchanged.
+
+### Task 13 Interactive citations (2026-11-12)
+
+`citations[].excerpt` is now ≤500 chars, trimmed on sentence boundaries. Frontend turns
+`[S1]` markers into accessible citation chips via a remark plugin (`citationMarkers`)
+plus a `CitationChip` with a hover/focus/tap popover (excerpt, source file, section)
+and a "View in Sources" link that scrolls to and highlights the Sources entry; unknown
+ids render as plain text. No `dangerouslySetInnerHTML`. Tests cover lists/tables,
+popover on hover/focus/tap, a11y roles, and the unknown-id fallback.
+
+### Task 14 Comparison matrix + eGFR widget (2026-11-12)
+
+A) Multi-drug comparison matrix: for multi_hop plans spanning 2+ drugs the Answer
+returns a validated `comparison {drugs, rows[{attribute, values{drug:{text,
+citation_ids}}}]}`; every cell is grounded in cited evidence and missing data is the
+explicit "Not stated in sources". Frontend renders a filterable, sticky-first-column,
+horizontally scrollable grid with citation chips; falls back to the Markdown table when
+absent. B) eGFR widget: pure `egfr_ckd_epi_2021` (CKD-EPI 2021, mg/dL↔µmol/L, bounds)
+with unit tests against reference vectors; when the cited evidence mentions renal
+thresholds the response includes `widgets:[{type:"egfr", thresholds:[...]}]`, rendered
+as an inline educational calculator (live result, highlights crossed thresholds,
+explicit "not personalized dosing advice" disclaimer).
+
+Eval re-run (2026-11-12): **15/17** — all 4 public questions pass (`hybrid`, correct
+sources, `pass`); the 2 failures are transient LLM latency (q12 → 504 timeout, q13 →
+89s), not feature regressions (the new features add zero LLM calls).
 
 ## Known issues
 
