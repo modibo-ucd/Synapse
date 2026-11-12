@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–10 completed 2026-11-12. Next: Task 11 (submission gate).
+Tasks 0–11 completed 2026-11-12. Next: Task 12 (streaming trace).
 
 ## Checklist
 
@@ -17,7 +17,7 @@ Tasks 0–10 completed 2026-11-12. Next: Task 11 (submission gate).
 - [x] 8 Eval harness + tuning — golden YAML, runner, scoring + tuning fixes
 - [x] 9 React UI — chat frontend
 - [x] 10 Dockerfile — multi-stage build, graded command
-- [ ] 11 Submission gate — Definition of Done checklist
+- [x] 11 Submission gate — Definition of Done checklist
 - [ ] 12 Streaming trace — SSE stage events + trace panel
 - [ ] 13 Interactive citations — hover/focus preview
 - [ ] 14 Comparison matrix + eGFR widget
@@ -218,10 +218,34 @@ clean 503), (e) runs as non-root (uid 10001), (f) UI loads at `/`.
 Fix: `numpy==2.5.4` requires Python ≥3.12, conflicting with the graded
 `python:3.11-slim` base — re-pinned to `numpy==2.4.6` (same 2.x API surface).
 
+### Task 11 Submission gate (2026-11-12)
+
+Wrote the full `README.md` (overview, exact Docker commands, required env vars, UI
+URL, `/health` and `/ask` curl examples, 5-stage pipeline Mermaid diagram, project
+structure, dev/test commands, eval harness, AI-coding-config note, disclaimer). Quality
+gate green: `ruff`, `mypy --strict` (46 files), `pytest` (154), frontend
+`tsc --noEmit`, `eslint`, `vitest` (11), `npm run build`.
+
+Secret audit: `.env` (key/base URL) was never committed and no key-like strings are in
+any tracked file. However, the confidential `assignment-pharma.pdf` WAS committed
+(`ec2f3b3`, `98613df`) and pushed to the public remote. Remediated (owner approved):
+purged it from all history with `git filter-repo --path assignment-pharma.pdf
+--invert-paths`, force-pushed the rewritten history, and re-synced/pruned the local
+clone. Re-audit clean: no PDF or `.env` in any ref.
+
+Remote: `https://github.com/modibo-ucd/Synapse.git` (public GitHub; GitLab was only
+"preferred", not required). Pushed `main`.
+
+Clean-clone test: `git clone` into a temp folder outside the project, copied the real
+`.env`, ran the exact graded command (build **645s**, image **415 MB**), `/health` 200
+in **8.8s**, index ready in **17.9s**, and all 4 public questions returned 200 with the
+expected sources and `pass` verdicts — matching `docs/eval_results.md`.
+
 ## Known issues
 
-- `assignment-pharma.pdf` was tracked in git; removed from the index with
-  `git rm --cached` (file kept locally on disk).
+- (Resolved Task 11) `assignment-pharma.pdf` was committed (`ec2f3b3`, `98613df`) and
+  pushed; purged from all history with `git filter-repo` + force-push (kept locally on
+  disk, gitignored). `.env` was never committed.
 - (Resolved) Local `.env` initially had `OPENAI_BASE_UR` instead of
   `OPENAI_BASE_URL`; corrected before the probe's final run.
 - PDF question 4 is truncated after "what is the threshold"; handled per the
