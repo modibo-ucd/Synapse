@@ -14,6 +14,26 @@ from typing import Any
 
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 
+# Secret values (the API key and base URL) that must never appear in any log line.
+# Redaction is applied to the final serialized string, so it covers messages,
+# exception tracebacks and any extra fields alike.
+_REDACTED = "[REDACTED]"
+_secret_values: set[str] = set()
+
+
+def register_secrets(*values: str) -> None:
+    """Register secret substrings to be scrubbed from every log line."""
+    for value in values:
+        if value:
+            _secret_values.add(value)
+
+
+def _redact(text: str) -> str:
+    for secret in _secret_values:
+        if secret in text:
+            text = text.replace(secret, _REDACTED)
+    return text
+
 
 def get_request_id() -> str | None:
     """Return the request id for the current context, if any."""
@@ -48,11 +68,16 @@ class JsonFormatter(logging.Formatter):
                 payload[key] = value
         if record.exc_info:
             payload["exc_info"] = self.formatException(record.exc_info)
-        return json.dumps(payload)
+        return _redact(json.dumps(payload))
 
 
-def configure_logging(level: str) -> None:
-    """Replace the root logger's handlers with a single JSON stdout handler."""
+def configure_logging(level: str, secrets: tuple[str, ...] = ()) -> None:
+    """Replace the root logger's handlers with a single JSON stdout handler.
+
+    ``secrets`` are registered for redaction so they can never leak via messages
+    or tracebacks.
+    """
+    register_secrets(*secrets)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     root = logging.getLogger()

@@ -71,6 +71,29 @@ def _label(question_id: str, runs: int, run_index: int) -> str:
     return f"{question_id}/r{run_index}" if runs > 1 else question_id
 
 
+def _latency_summary(rows: list[tuple[GoldenQuestion, QuestionResult]]) -> str:
+    """Return a ``p50/p95 (n)`` summary over the successful responses' latency."""
+    latencies = sorted(
+        float(result.details["latency_ms"])
+        for _, result in rows
+        if "error" not in result.details and result.details.get("latency_ms") is not None
+    )
+    if not latencies:
+        return "latency p50/p95: n/a"
+
+    def percentile(p: float) -> float:
+        index = (len(latencies) - 1) * p
+        lower = int(index)
+        upper = min(lower + 1, len(latencies) - 1)
+        weight = index - lower
+        return latencies[lower] * (1 - weight) + latencies[upper] * weight
+
+    return (
+        f"latency p50={percentile(0.50):.0f} ms, "
+        f"p95={percentile(0.95):.0f} ms (n={len(latencies)})"
+    )
+
+
 def render_markdown(
     rows: list[tuple[GoldenQuestion, QuestionResult]], base_url: str, generated: str
 ) -> str:
@@ -82,6 +105,7 @@ def render_markdown(
         f"- Base URL: {base_url}",
         f"- Generated: {generated}",
         f"- Passed: {passed}/{len(rows)}",
+        f"- {_latency_summary(rows)}",
         "",
         "| id | kind | result | verdict | latency_ms | retrieval |",
         "|----|------|--------|---------|------------|-----------|",
@@ -139,6 +163,7 @@ def main() -> int:
     print(markdown)
     passed = sum(1 for _, result in rows if result.passed)
     print(f"{passed}/{len(rows)} passed")
+    print(_latency_summary(rows))
     return 0
 
 

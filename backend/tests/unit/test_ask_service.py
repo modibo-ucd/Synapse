@@ -28,6 +28,17 @@ def test_ask_request_rejects_empty_and_too_long() -> None:
         AskRequest.model_validate({"question": "x" * 2001})
 
 
+def test_ask_request_rejects_control_characters_only() -> None:
+    with pytest.raises(ValidationError):
+        AskRequest.model_validate({"question": "\x00\x01\x02"})
+
+
+def test_ask_request_normalizes_and_preserves_unicode() -> None:
+    assert AskRequest.model_validate({"question": "  métabolite\tドラッグ\n "}).question == (
+        "métabolite ドラッグ"
+    )
+
+
 def test_translate_provider_error_codes() -> None:
     assert isinstance(
         translate_provider_error(

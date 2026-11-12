@@ -20,12 +20,37 @@ from app.providers import openai as openai_providers
 from app.retrieval.index_manager import IndexManager
 from app.services.ask_service import AskService
 
+# Basic hardening headers applied to every response. The CSP allows only the
+# built Vite bundle: same-origin scripts/styles/fonts/images, no inline script,
+# and no framing of the page. ``'unsafe-inline'`` for styles covers inline style
+# attributes used by the UI (Tailwind classes live in the external stylesheet).
+SECURITY_HEADERS: dict[str, str] = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'"
+    ),
+}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Configure logging and start the in-memory index build in the background."""
     settings: Settings = app.state.settings
-    configure_logging(settings.log_level)
+    configure_logging(
+        settings.log_level,
+        secrets=(settings.openai_api_key, settings.openai_base_url),
+    )
     index_manager = IndexManager(settings, openai_providers.build_embedding_provider(settings))
     index_manager.start()
     app.state.index_manager = index_manager
@@ -86,6 +111,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             request_id_var.reset(token)
         response.headers["X-Request-ID"] = request_id
+        return response
+
+    @app.middleware("http")
+    async def security_headers_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        response.headers.update(SECURITY_HEADERS)
         return response
 
     register_exception_handlers(app)

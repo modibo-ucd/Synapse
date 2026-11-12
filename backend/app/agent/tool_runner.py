@@ -15,6 +15,8 @@ from app.schemas.domain import Claim, Draft, Evidence, Plan
 
 _EVIDENCE_START = "<<<BEGIN EVIDENCE>>>"
 _EVIDENCE_END = "<<<END EVIDENCE>>>"
+_QUESTION_START = "<<<BEGIN QUESTION>>>"
+_QUESTION_END = "<<<END QUESTION>>>"
 
 
 def clean_draft(
@@ -137,7 +139,11 @@ class ToolRunner:
         parts: list[str] = []
         if plan.sub_goals:
             lines = [f"{i + 1}. {sg.question}" for i, sg in enumerate(plan.sub_goals)]
-            parts.append("Sub-questions:\n" + "\n".join(lines))
+            parts.append(
+                f"{_QUESTION_START}\nSub-questions:\n"
+                + "\n".join(lines)
+                + f"\n{_QUESTION_END}"
+            )
         parts.append(
             f"{_EVIDENCE_START}\n{self._format_evidence(evidence)}\n{_EVIDENCE_END}"
         )

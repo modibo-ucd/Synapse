@@ -142,8 +142,9 @@ class IndexManager:
                 overlap_tokens=self._settings.chunk_overlap_tokens,
                 chars_per_token=self._settings.chars_per_token,
             )
-        except Exception:  # noqa: BLE001 - a broken corpus must not crash the app
-            logger.exception("Corpus loading/chunking failed; index degraded")
+        except Exception as exc:  # noqa: BLE001 - a broken corpus must not crash the app
+            # Log the failure type only: the traceback could carry provider URLs.
+            logger.warning("Corpus loading/chunking failed; index degraded: %s", type(exc).__name__)
             self._retriever = None
             self._drug_names = set()
             self._status = "degraded"
@@ -163,8 +164,12 @@ class IndexManager:
             if vectors:
                 vector_index.add([chunk.chunk_id for chunk in chunks], vectors)
                 dense_ok = True
-        except Exception:  # noqa: BLE001 - degrade to BM25-only on embedding failure
-            logger.exception("Embeddings unavailable; falling back to BM25-only")
+        except Exception as exc:  # noqa: BLE001 - degrade to BM25-only on embedding failure
+            # Log the failure type only: the traceback could carry provider URLs.
+            logger.warning(
+                "Embeddings unavailable; falling back to BM25-only: %s",
+                type(exc).__name__,
+            )
 
         searcher = HybridSearcher(
             vector_index, bm25, chunks, abbreviations, rrf_k=self._settings.rrf_k

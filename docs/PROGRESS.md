@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 completed 2026-11-12. Next: Task 15 (semantic cache + limits).
+Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. Next: Tasks 15/17.
 
 ## Checklist
 
@@ -22,7 +22,7 @@ Tasks 0–14 completed 2026-11-12. Next: Task 15 (semantic cache + limits).
 - [x] 13 Interactive citations — hover/focus preview
 - [x] 14 Comparison matrix + eGFR widget
 - [ ] 15 Semantic cache + limits
-- [ ] 16 Hardening — errors, timeouts, non-root user, sanitization
+- [x] 16 Hardening — errors, timeouts, non-root user, sanitization
 - [ ] 17 E2E smoke (optional) — Playwright
 - [ ] 18 Presentation + walkthrough docs
 - [ ] 19 Final freeze
@@ -279,6 +279,47 @@ explicit "not personalized dosing advice" disclaimer).
 Eval re-run (2026-11-12): **15/17** — all 4 public questions pass (`hybrid`, correct
 sources, `pass`); the 2 failures are transient LLM latency (q12 → 504 timeout, q13 →
 89s), not feature regressions (the new features add zero LLM calls).
+
+### Task 16 Robustness & safety hardening (2026-11-12)
+
+Hardened per `.clinerules` §10/§12:
+
+- **Concurrency** — `AskService` no longer caches a single `Pipeline`. Each `/ask`
+  builds a fresh pipeline + `TokenTrackingLLMClient`, reusing the shared LLM client
+  (concurrency semaphore + structured-output probe cache) and the read-only
+  retriever/tool registry. 10 parallel asks keep per-request token usage and tool
+  results isolated and never corrupt the index (concurrency unit tests).
+- **Input robustness** — new `app/core/text.sanitize_question` runs at the API
+  boundary (`AskRequest`): control characters stripped, whitespace normalized,
+  control-char-only questions → 422, Unicode preserved.
+- **Prompt-injection defense** — plan/draft/tools/review prompts mark user text and
+  retrieved passages as untrusted data; question/sub-questions wrapped in
+  `<<<BEGIN QUESTION>>>`/`<<<END QUESTION>>>` delimiters; hostile corpus text never
+  changes tool use or output format (unit + end-to-end integration tests).
+- **Safety** — plan prompt forbids personalized dosing/diagnosis; patient-specific
+  questions are answered strictly from label text with the mandatory disclaimer;
+  out-of-scope/unanswerable questions decline clearly.
+- **Failure modes** — provider 401/403→503, 429→429, timeout→504, 5xx→502 as clean
+  structured errors; malformed JSON repair (provider tests); empty/invalid tool
+  arguments → error result (no crash); embeddings fail → `bm25_only`; startup with no
+  key or unreachable base URL keeps `/health` 200.
+- **Security** — security-headers middleware (`X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, a CSP compatible with the
+  built Vite bundle); log redaction filter scrubs the API key and base URL;
+  degradation paths log the failure type only (no tracebacks carrying provider URLs);
+  container confirmed non-root (uid 10001).
+- **Eval** — latency p50/p95 added to the harness.
+
+Eval re-run (2026-11-12): **16/17** — p50 **13.1s**, p95 **30.6s** (n=17). All 4 public
+questions pass (`hybrid`, correct sources, `pass`); q12 (aspirin + warfarin) misses the
+literal "bleeding" substring (verdict `pass`, no unsupported flags — an exact-substring
+scorer sensitivity, not a grounding failure). Recorded in `docs/eval_results.md`.
+
+Checks: `ruff` ✓, `mypy --strict` (48 files) ✓, `pytest` (194) ✓, frontend
+`tsc --noEmit` / `eslint` / `vitest` (29) ✓, `npm run build` ✓. Docker graded command
+verified: `/health` 200 (index ready), `/ask` 200 grounded with disclaimer, security
+headers present, non-root (uid 10001); invalid-key + quoted-values `.env` → `/health`
+200 (index `degraded`), `/ask` clean 503 `configuration_error`.
 
 ## Known issues
 

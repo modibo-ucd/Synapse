@@ -15,6 +15,8 @@ _EVIDENCE_START = "<<<BEGIN EVIDENCE>>>"
 _EVIDENCE_END = "<<<END EVIDENCE>>>"
 _TOOLS_START = "<<<BEGIN TOOL OUTPUT>>>"
 _TOOLS_END = "<<<END TOOL OUTPUT>>>"
+_QUESTION_START = "<<<BEGIN QUESTION>>>"
+_QUESTION_END = "<<<END QUESTION>>>"
 
 
 def cited_text_for(claim: Claim, evidence: Evidence, tool_results: list[ToolResult]) -> str:
@@ -126,7 +128,7 @@ class Reviewer:
     ) -> str:
         blocks: list[str] = []
         if question:
-            blocks.append(f"Original question: {question}")
+            blocks.append(f"{_QUESTION_START}\nOriginal question: {question}\n{_QUESTION_END}")
         blocks.append("Draft claims:")
         for index, claim in enumerate(draft.claims):
             blocks.append(

@@ -13,6 +13,7 @@ from app.agent.plan import Planner
 from app.agent.review import Reviewer
 from app.agent.tool_runner import ToolRunner
 from app.agent.tools import build_tool_registry
+from app.agent.tools.base import ToolRegistry
 from app.agent.usage import TokenTrackingLLMClient
 from app.core.config import Settings
 from app.core.errors import (
@@ -23,6 +24,7 @@ from app.core.errors import (
     RateLimitError,
 )
 from app.providers import openai as openai_providers
+from app.providers.protocols import LLMClient
 from app.providers.protocols import ProviderError as ProviderProtocolError
 from app.retrieval.index_manager import IndexManager
 from app.schemas.domain import AskResponse
@@ -47,11 +49,18 @@ class AskService:
     def __init__(self, settings: Settings, index_manager: IndexManager) -> None:
         self._settings = settings
         self._index_manager = index_manager
-        self._pipeline: Pipeline | None = None
+        # Shared across requests: the underlying client carries the concurrency
+        # semaphore and the cached structured-output probe, and the registry is a
+        # read-only allowlist over the immutable chunk list.
+        self._llm_client: LLMClient | None = None
+        self._tool_registry: ToolRegistry | None = None
+        # Last completed run's stage events (informational; per-run events are
+        # streamed/returned through the pipeline, never through this property).
+        self._last_events: list[StageEvent] = []
 
     @property
     def events(self) -> list[StageEvent]:
-        return self._pipeline.events if self._pipeline is not None else []
+        return list(self._last_events)
 
     async def ask(self, question: str, trace_id: str | None) -> AskResponse:
         return await self._run(question, trace_id, on_event=None)
@@ -75,16 +84,18 @@ class AskService:
             raise ConfigurationError(
                 "LLM is not configured. Set OPENAI_API_KEY, OPENAI_BASE_URL and OPENAI_MODEL."
             )
-        if self._pipeline is None:
-            self._pipeline = self._build_pipeline()
 
+        # A fresh pipeline (and a fresh token tracker) per request keeps the
+        # mutable per-run state — token usage, tool results and stage events —
+        # isolated when /ask is hit concurrently. The LLM client, retriever and
+        # tool registry are shared but read-only/thread-safe.
+        pipeline = self._build_pipeline()
         start = time.perf_counter()
         try:
-            response = await self._pipeline.run(
-                question, trace_id=trace_id, on_event=on_event
-            )
+            response = await pipeline.run(question, trace_id=trace_id, on_event=on_event)
         except ProviderProtocolError as exc:
             raise translate_provider_error(exc) from exc
+        self._last_events = pipeline.events
         latency_ms = (time.perf_counter() - start) * 1000
         logger.info(
             "ask_completed",
@@ -99,19 +110,29 @@ class AskService:
         )
         return response
 
+    def _get_llm_client(self) -> LLMClient:
+        if self._llm_client is None:
+            self._llm_client = openai_providers.build_llm_client(self._settings)
+        return self._llm_client
+
+    def _get_tool_registry(self) -> ToolRegistry:
+        if self._tool_registry is None:
+            self._tool_registry = build_tool_registry(
+                self._index_manager.chunks, self._index_manager.glossary_entries
+            )
+        return self._tool_registry
+
     def _build_pipeline(self) -> Pipeline:
         retriever = self._index_manager.retriever
         if retriever is None:
             raise ConfigurationError("The corpus index is unavailable.")
-        tracker = TokenTrackingLLMClient(openai_providers.build_llm_client(self._settings))
-        tools = build_tool_registry(
-            self._index_manager.chunks, self._index_manager.glossary_entries
-        )
+        tracker = TokenTrackingLLMClient(self._get_llm_client())
         return Pipeline(
             Planner(tracker),
             retriever,
-            ToolRunner(tracker, tools),
+            ToolRunner(tracker, self._get_tool_registry()),
             Reviewer(tracker),
             Answerer(),
             usage=tracker,
+            timeout_s=self._settings.request_timeout_s,
         )

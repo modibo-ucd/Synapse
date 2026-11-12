@@ -20,6 +20,9 @@ class FakeLLMClient:
         self._text_scripts: list[Any] = []
         self._structured_scripts: list[Any] = []
         self._tool_scripts: list[Any] = []
+        # Records every call as (method, messages) so tests can assert the prompt
+        # defense (delimited, untrusted-marked blocks) without inspecting internals.
+        self.calls: list[tuple[str, Messages]] = []
 
     def script_text(self, result: str | LLMResult[str] | Exception) -> None:
         self._text_scripts.append(
@@ -37,11 +40,13 @@ class FakeLLMClient:
         )
 
     async def generate_text(self, messages: Messages) -> LLMResult[str]:
+        self.calls.append(("generate_text", messages))
         return self._pop(self._text_scripts, "generate_text")
 
     async def generate_structured(
         self, messages: Messages, schema: type[BaseModel]
     ) -> LLMResult[Any]:
+        self.calls.append(("generate_structured", messages))
         item = self._pop(self._structured_scripts, "generate_structured")
         if isinstance(item, BaseModel):
             return LLMResult(content=item.model_dump_json(), parsed=item)
@@ -50,6 +55,7 @@ class FakeLLMClient:
     async def chat_with_tools(
         self, messages: Messages, tools: list[ToolSpec]
     ) -> ToolChatResult:
+        self.calls.append(("chat_with_tools", messages))
         return self._pop(self._tool_scripts, "chat_with_tools")
 
     @staticmethod

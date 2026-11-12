@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.text import sanitize_question
+
 SourceType = Literal["dailymed", "medlineplus"]
 
 
@@ -251,8 +253,11 @@ class AskRequest(BaseModel):
 
     @field_validator("question")
     @classmethod
-    def strip_question(cls, value: str) -> str:
-        value = value.strip()
+    def clean_question(cls, value: str) -> str:
+        # Control characters are stripped and whitespace normalized at the boundary
+        # so downstream stages never see control bytes; a control-character-only
+        # question is rejected as empty (422).
+        value = sanitize_question(value)
         if not value:
             raise ValueError("question must not be empty")
         return value

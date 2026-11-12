@@ -2,20 +2,14 @@
 
 from __future__ import annotations
 
-import re
-
 from app.agent.prompts.plan import PLAN_SYSTEM_PROMPT
 from app.core.constants import MAX_SUB_GOALS
 from app.core.errors import AgentError
+from app.core.text import sanitize_question
 from app.providers.protocols import LLMClient, Messages
 from app.schemas.domain import Plan, SubGoal
 
-_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-
-
-def sanitize_question(text: str) -> str:
-    """Strip control characters and collapse whitespace."""
-    return " ".join(_CONTROL_RE.sub("", text).split())
+__all__ = ["Planner", "sanitize_question"]
 
 
 def _repair_message(max_sub_goals: int) -> str:
