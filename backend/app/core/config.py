@@ -15,7 +15,14 @@ from typing import Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.constants import MAX_SUB_GOALS, MAX_TOOL_CALLS, REQUEST_TIMEOUT_S
+from app.core.constants import (
+    CHARS_PER_TOKEN,
+    CHUNK_MAX_TOKENS,
+    CHUNK_OVERLAP_TOKENS,
+    MAX_SUB_GOALS,
+    MAX_TOOL_CALLS,
+    REQUEST_TIMEOUT_S,
+)
 
 
 class Settings(BaseSettings):
@@ -44,6 +51,9 @@ class Settings(BaseSettings):
     max_sub_goals: int = MAX_SUB_GOALS
     max_tool_calls: int = MAX_TOOL_CALLS
     request_timeout_s: float = REQUEST_TIMEOUT_S
+    chunk_max_tokens: int = CHUNK_MAX_TOKENS
+    chunk_overlap_tokens: int = CHUNK_OVERLAP_TOKENS
+    chars_per_token: float = CHARS_PER_TOKEN
     rate_limit_per_min: int = 0
     semantic_cache_enabled: bool = False
     log_level: str = "INFO"

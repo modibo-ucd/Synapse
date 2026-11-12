@@ -17,3 +17,8 @@ REQUEST_TIMEOUT_S = 90.0
 
 # API contract limits.
 MAX_QUESTION_LEN = 2000
+
+# Structure-aware chunking defaults (configurable via Settings/environment).
+CHUNK_MAX_TOKENS = 800
+CHUNK_OVERLAP_TOKENS = 60
+CHARS_PER_TOKEN = 4.0

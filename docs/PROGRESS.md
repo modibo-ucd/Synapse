@@ -2,15 +2,14 @@
 
 ## Status
 
-Task 0 (Recon), Task 1 (Backend scaffold & config) and Task 2 (LLM & embedding
-providers) completed 2026-11-12. Next: Task 3 (Corpus + chunking).
+Tasks 0–3 completed 2026-11-12. Next: Task 4 (Index + hybrid retrieval).
 
 ## Checklist
 
 - [x] 0 Recon — repo hygiene, corpus analysis, LLM proxy probe, requirements
 - [x] 1 Scaffold — FastAPI app skeleton, pyproject.toml, test setup
 - [x] 2 Providers — LLM + embedding adapters (OpenAI-compatible)
-- [ ] 3 Corpus + chunking — loader, structure-aware chunker
+- [x] 3 Corpus + chunking — loader, structure-aware chunker
 - [ ] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
 - [ ] 5 Plan + Tools — planner + typed local tool registry
 - [ ] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
@@ -71,6 +70,16 @@ providers) completed 2026-11-12. Next: Task 3 (Corpus + chunking).
     `backend/tests/fakes/` (FakeLLMClient raises on unscripted; FakeEmbeddingProvider
     is deterministic hash-based); an autouse conftest fixture installs them (opt
     out via `@pytest.mark.real_providers`); `LLM_PROVIDER=fake` selects them at runtime.
+12. **Retrieval (Task 3)** — loader derives `drug_name`/`source_type` from
+    `<source>-<drug>.md`; `GLOSSARY.md` (25 entries) parsed to
+    term/aliases/definition and never chunked. Structure-aware chunker: splits on
+    headings (path = `drug > section > subsection`); tables = blank-line blocks
+    containing `|`, kept atomic (oversized tables split at rows, header repeated);
+    Boxed Warning / Contraindications / Dosage sections never split; oversized
+    sections split at paragraph boundaries with small overlap. Token count =
+    `ceil(len/chars_per_token)` (default 4.0); 800-token chunks, 60-token overlap,
+    all Settings-configurable. Chunk id = `sha256(file|path|index)[:16]`; 460 chunks
+    total. CLI: `python -m app.retrieval.inspect_chunks [file]`.
 
 ## Known issues
 
