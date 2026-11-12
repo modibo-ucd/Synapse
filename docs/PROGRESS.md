@@ -2,13 +2,13 @@
 
 ## Status
 
-Task 0 (Recon, LLM proxy probe, repo hygiene) completed 2026-11-12. Application
-code starts with Task 1 (Scaffold).
+Task 0 (Recon, LLM proxy probe, repo hygiene) and Task 1 (Backend scaffold &
+config) completed 2026-11-12. Next: Task 2 (Providers).
 
 ## Checklist
 
 - [x] 0 Recon — repo hygiene, corpus analysis, LLM proxy probe, requirements
-- [ ] 1 Scaffold — FastAPI app skeleton, pyproject.toml, test setup
+- [x] 1 Scaffold — FastAPI app skeleton, pyproject.toml, test setup
 - [ ] 2 Providers — LLM + embedding adapters (OpenAI-compatible)
 - [ ] 3 Corpus + chunking — loader, structure-aware chunker
 - [ ] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
@@ -51,6 +51,14 @@ code starts with Task 1 (Scaffold).
    sertraline, metformin) are the graded focus.
 7. **OpenAI SDK** — `openai` 3.49.0 (v3 API) installed locally; pin it in
    `pyproject.toml` during Task 1.
+8. **Pinned versions (Task 1)** — fastapi 0.162.5, uvicorn[standard] 0.54.0,
+   pydantic 2.14.3, pydantic-settings 2.16.2, openai 3.49.0, httpx 0.28.1,
+   numpy 2.5.4; dev: pytest 9.2.0, pytest-asyncio 1.4.1.post1, pytest-cov 7.1.0,
+   pytest-socket 0.8.1, respx 0.23.1, ruff 0.17.4, mypy 2.4.1. Note: openai 3.x
+   depends on `httpx2`/`httpcore2`; classic `httpx` (for TestClient/respx) coexists.
+9. **pytest-socket mode** — use `socket_allow_hosts(allowed=["127.0.0.1","::1"])`
+   (blocks outbound `.connect()` only) rather than `disable_socket`, because the
+   full socket-creation block breaks asyncio's self-pipe on Windows.
 
 ## Known issues
 
