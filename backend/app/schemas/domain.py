@@ -182,6 +182,24 @@ class Comparison(BaseModel):
     rows: list[ComparisonRow] = Field(default_factory=list)
 
 
+class EgfrThreshold(BaseModel):
+    """A single eGFR threshold taken from cited evidence."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    value: float
+    citation_ids: list[str] = Field(default_factory=list)
+
+
+class EgfrWidget(BaseModel):
+    """An educational eGFR widget request with label thresholds."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    type: Literal["egfr"] = "egfr"
+    thresholds: list[EgfrThreshold] = Field(default_factory=list)
+
+
 class Usage(BaseModel):
     """Aggregated token usage across the pipeline."""
 
@@ -201,6 +219,7 @@ class AnswerAssembly(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     disclaimer: str = ""
     comparison: Comparison | None = None
+    widgets: list[EgfrWidget] | None = None
 
 
 class AskResponse(BaseModel):
@@ -220,6 +239,7 @@ class AskResponse(BaseModel):
     usage: Usage
     latency_ms: float
     comparison: Comparison | None = None
+    widgets: list[EgfrWidget] | None = None
 
 
 class AskRequest(BaseModel):

@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.agent.review import cited_text_for, extract_numbers, missing_numbers
 from app.agent.tools.base import ToolResult
 from app.core.constants import MEDICAL_DISCLAIMER
+from app.core.egfr import extract_egfr_thresholds
 from app.schemas.domain import (
     AnswerAssembly,
     Citation,
@@ -13,6 +14,8 @@ from app.schemas.domain import (
     ComparisonCell,
     ComparisonRow,
     Draft,
+    EgfrThreshold,
+    EgfrWidget,
     Evidence,
     EvidenceChunk,
     Plan,
@@ -68,6 +71,7 @@ class Answerer:
             for index, result in enumerate(cited_tools, start=1)
         }
         comparison = self._build_comparison(plan, cited_chunks, chunk_markers)
+        widgets = self._build_widgets(cited_chunks, chunk_markers)
 
         citations = [
             Citation(
@@ -112,6 +116,7 @@ class Answerer:
             citations=citations,
             disclaimer=self._disclaimer,
             comparison=comparison,
+            widgets=widgets,
         )
 
     def run_out_of_scope(self) -> AnswerAssembly:
@@ -269,6 +274,27 @@ class Answerer:
             if chunk.chunk_id in chunk_markers
         ]
         return ComparisonCell(text=text, citation_ids=citation_ids)
+
+    @staticmethod
+    def _build_widgets(
+        cited_chunks: list[EvidenceChunk], chunk_markers: dict[str, str]
+    ) -> list[EgfrWidget] | None:
+        """Build an eGFR widget when the cited evidence mentions renal thresholds."""
+        by_value: dict[float, list[str]] = {}
+        for chunk in cited_chunks:
+            marker = chunk_markers.get(chunk.chunk_id)
+            if marker is None:
+                continue
+            for value in extract_egfr_thresholds(chunk.text):
+                by_value.setdefault(value, []).append(marker)
+
+        if not by_value:
+            return None
+        thresholds = [
+            EgfrThreshold(value=value, citation_ids=sorted(set(ids)))
+            for value, ids in sorted(by_value.items())
+        ]
+        return [EgfrWidget(thresholds=thresholds)]
 
     @staticmethod
     def _review_notes(review: Review) -> str:

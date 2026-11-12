@@ -1,4 +1,5 @@
 import { ComparisonMatrix } from '../../components/ComparisonMatrix'
+import { EgfrCalculator } from '../../components/EgfrCalculator'
 import { Markdown } from '../../components/Markdown'
 import { ReviewFlags } from '../../components/ReviewFlags'
 import { SourcesList } from '../../components/SourcesList'
@@ -20,6 +21,9 @@ export function AnswerView({ answer }: AnswerViewProps) {
       {answer.comparison && (
         <ComparisonMatrix comparison={answer.comparison} citations={answer.citations} />
       )}
+      {answer.widgets?.map((widget) => (
+        <EgfrCalculator key={widget.type} widget={widget} citations={answer.citations} />
+      ))}
       <ReviewFlags review={answer.review} />
       <SourcesList sources={answer.sources} citations={answer.citations} />
     </div>

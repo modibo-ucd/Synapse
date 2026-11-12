@@ -184,3 +184,27 @@ async def test_no_comparison_for_simple_plan() -> None:
     assembly = await answerer.run(draft, Review(verdict="pass"), _evidence(), [], plan=plan)
     assert assembly.comparison is None
 
+
+async def test_widget_built_for_renal_threshold_evidence() -> None:
+    answerer = Answerer()
+    metformin = _chunk(
+        "e1", "dailymed-metformin.md", "4 CONTRAINDICATIONS",
+        "Metformin is contraindicated in patients with an eGFR below 30 mL/min/1.73 m².",
+    )
+    evidence = Evidence(chunks=[metformin], retrieval_mode="hybrid")
+    draft = Draft(
+        claims=[Claim(text="metformin contraindicated below 30", evidence_ids=["e1"])]
+    )
+    assembly = await answerer.run(draft, Review(verdict="pass"), evidence, [])
+    assert assembly.widgets is not None
+    assert assembly.widgets[0].type == "egfr"
+    assert assembly.widgets[0].thresholds[0].value == 30.0
+    assert assembly.widgets[0].thresholds[0].citation_ids == ["S1"]
+
+
+async def test_no_widget_without_renal_evidence() -> None:
+    answerer = Answerer()
+    draft = Draft(claims=[Claim(text="warfarin contraindicated in pregnancy", evidence_ids=["e1"])])
+    assembly = await answerer.run(draft, Review(verdict="pass"), _evidence(), [])
+    assert assembly.widgets is None
+

@@ -53,6 +53,16 @@ export const ComparisonSchema = z.object({
   rows: z.array(ComparisonRowSchema).default([]),
 })
 
+export const EgfrThresholdSchema = z.object({
+  value: z.number(),
+  citation_ids: z.array(z.string()).default([]),
+})
+
+export const EgfrWidgetSchema = z.object({
+  type: z.literal('egfr').default('egfr'),
+  thresholds: z.array(EgfrThresholdSchema).default([]),
+})
+
 export const AskResponseSchema = z
   .object({
     answer: z.string(),
@@ -67,6 +77,7 @@ export const AskResponseSchema = z
     usage: UsageSchema.default({ tokens_in: 0, tokens_out: 0 }),
     latency_ms: z.number().default(0),
     comparison: ComparisonSchema.nullable().optional(),
+    widgets: z.array(EgfrWidgetSchema).nullable().optional(),
   })
   .passthrough()
 
@@ -119,3 +130,4 @@ export type AskResponse = z.infer<typeof AskResponseSchema>
 export type ApiErrorPayload = z.infer<typeof ApiErrorPayloadSchema>
 export type StageEvent = z.infer<typeof StageEventSchema>
 export type Comparison = z.infer<typeof ComparisonSchema>
+export type EgfrWidget = z.infer<typeof EgfrWidgetSchema>

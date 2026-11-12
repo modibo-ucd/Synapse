@@ -93,6 +93,7 @@ class Pipeline:
             usage=Usage(tokens_in=self._usage.tokens_in, tokens_out=self._usage.tokens_out),
             latency_ms=latency_ms,
             comparison=answer.comparison,
+            widgets=answer.widgets,
         )
 
     async def _run_stages(

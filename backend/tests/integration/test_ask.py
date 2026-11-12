@@ -74,6 +74,7 @@ def test_ask_returns_200_with_valid_schema(monkeypatch, tmp_path) -> None:
     assert set(body) == {
         "answer", "sources", "citations", "disclaimer", "plan", "tool_calls",
         "review", "retrieval_mode", "trace_id", "usage", "latency_ms", "comparison",
+        "widgets",
     }
     assert body["disclaimer"] and body["disclaimer"] in body["answer"]
     assert "dailymed-warfarin.md" in body["answer"]
