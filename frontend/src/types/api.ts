@@ -62,8 +62,43 @@ export const ApiErrorPayloadSchema = z.object({
   }),
 })
 
+export const StageEventDetailsSchema = z.object({
+  complexity: z.string().optional(),
+  in_scope: z.boolean().optional(),
+  sub_goals: z.array(SubGoalSchema).optional(),
+  mode: z.string().optional(),
+  chunk_count: z.number().optional(),
+  source_files: z.array(z.string()).optional(),
+  chunks: z
+    .array(
+      z.object({
+        source_file: z.string(),
+        section: z.string(),
+        dense_rank: z.number().nullable().optional(),
+        bm25_rank: z.number().nullable().optional(),
+        fused_score: z.number().optional(),
+      }),
+    )
+    .optional(),
+  claims: z.number().optional(),
+  tool_calls: z.array(ToolCallSchema).optional(),
+  verdict: z.string().optional(),
+  unsupported_claims: z.array(z.string()).optional(),
+  ambiguity_flags: z.array(z.string()).optional(),
+  sources: z.array(z.string()).optional(),
+})
+
+export const StageEventSchema = z.object({
+  stage: z.enum(['plan', 'retrieve', 'tools', 'review', 'answer']),
+  status: z.enum(['ok', 'skipped']).default('ok'),
+  duration_ms: z.number().default(0),
+  summary: z.string().default(''),
+  details: StageEventDetailsSchema.default({}),
+})
+
 export type Citation = z.infer<typeof CitationSchema>
 export type Plan = z.infer<typeof PlanSchema>
 export type Review = z.infer<typeof ReviewSchema>
 export type AskResponse = z.infer<typeof AskResponseSchema>
 export type ApiErrorPayload = z.infer<typeof ApiErrorPayloadSchema>
+export type StageEvent = z.infer<typeof StageEventSchema>

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from app.agent.answer import Answerer
@@ -55,10 +56,16 @@ class Pipeline:
     def events(self) -> list[StageEvent]:
         return list(self._events)
 
-    async def run(self, question: str, *, trace_id: str | None = None) -> AskResponse:
+    async def run(
+        self,
+        question: str,
+        *,
+        trace_id: str | None = None,
+        on_event: Callable[[StageEvent], Awaitable[None]] | None = None,
+    ) -> AskResponse:
         trace_id = trace_id or uuid4().hex
         start = time.perf_counter()
-        context = PipelineContext()
+        context = PipelineContext(on_event=on_event)
         try:
             plan, evidence, review, answer, tool_results = await asyncio.wait_for(
                 self._run_stages(context, question), self._timeout_s
@@ -92,16 +99,25 @@ class Pipeline:
     ) -> tuple[Plan, Evidence, Review, AnswerAssembly, list[ToolResult]]:
         plan = await context.run_stage("plan", self._planner.run, question)
         if not plan.in_scope:
-            context.skip("retrieve", "out of scope")
-            context.skip("tools", "out of scope")
-            context.skip("review", "out of scope")
-            context.skip("answer", "out of scope")
+            await context.skip("retrieve", "out of scope")
+            await context.skip("tools", "out of scope")
+            await context.skip("review", "out of scope")
+            await context.skip("answer", "out of scope")
             evidence = Evidence(chunks=[], retrieval_mode=self._retriever.retrieval_mode)
             return plan, evidence, Review(verdict="pass"), self._answerer.run_out_of_scope(), []
 
         evidence = await context.run_stage("retrieve", self._retriever.run, plan)
         draft: Draft = await context.run_stage(
-            "tools", self._tool_runner.run, plan, evidence
+            "tools",
+            self._tool_runner.run,
+            plan,
+            evidence,
+            details_fn=lambda _draft: {
+                "tool_calls": [
+                    {"tool": result.tool, "arguments": result.arguments, "status": result.status}
+                    for result in self._tool_runner.last_tool_results
+                ]
+            },
         )
         tool_results = self._tool_runner.last_tool_results
         review = await context.run_stage(

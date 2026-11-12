@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Awaitable, Callable
 
 from app.agent.answer import Answerer
 from app.agent.events import StageEvent
@@ -53,6 +54,22 @@ class AskService:
         return self._pipeline.events if self._pipeline is not None else []
 
     async def ask(self, question: str, trace_id: str | None) -> AskResponse:
+        return await self._run(question, trace_id, on_event=None)
+
+    async def ask_streaming(
+        self,
+        question: str,
+        trace_id: str | None,
+        on_event: Callable[[StageEvent], Awaitable[None]],
+    ) -> AskResponse:
+        return await self._run(question, trace_id, on_event=on_event)
+
+    async def _run(
+        self,
+        question: str,
+        trace_id: str | None,
+        on_event: Callable[[StageEvent], Awaitable[None]] | None,
+    ) -> AskResponse:
         await self._index_manager.await_ready(self._settings.index_ready_timeout_s)
         if self._settings.llm_provider != "fake" and not self._settings.llm_configured:
             raise ConfigurationError(
@@ -63,7 +80,9 @@ class AskService:
 
         start = time.perf_counter()
         try:
-            response = await self._pipeline.run(question, trace_id=trace_id)
+            response = await self._pipeline.run(
+                question, trace_id=trace_id, on_event=on_event
+            )
         except ProviderProtocolError as exc:
             raise translate_provider_error(exc) from exc
         latency_ms = (time.perf_counter() - start) * 1000

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 
-import { ApiError, askQuestion } from '../../lib/api'
-import type { AskResponse } from '../../types/api'
+import { ApiError, askQuestion, streamAskQuestion } from '../../lib/api'
+import type { AskResponse, StageEvent } from '../../types/api'
 
 export type ChatStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -10,6 +10,7 @@ export interface ChatState {
   question: string
   answer: AskResponse | null
   error: string | null
+  trace: StageEvent[] | null
 }
 
 const initialState: ChatState = {
@@ -17,6 +18,7 @@ const initialState: ChatState = {
   question: '',
   answer: null,
   error: null,
+  trace: null,
 }
 
 export function useChat() {
@@ -27,14 +29,41 @@ export function useChat() {
     if (!trimmed) {
       return
     }
-    setState({ status: 'loading', question: trimmed, answer: null, error: null })
+    setState({ status: 'loading', question: trimmed, answer: null, error: null, trace: [] })
+
     try {
-      const answer = await askQuestion(trimmed)
-      setState({ status: 'success', question: trimmed, answer, error: null })
-    } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : 'Something went wrong. Please try again.'
-      setState({ status: 'error', question: trimmed, answer: null, error: message })
+      const stages: StageEvent[] = []
+      for await (const event of streamAskQuestion(trimmed)) {
+        if (event.type === 'stage') {
+          stages.push(event.event)
+          setState((previous) => ({ ...previous, trace: [...stages] }))
+        } else if (event.type === 'result') {
+          setState({
+            status: 'success',
+            question: trimmed,
+            answer: event.result,
+            error: null,
+            trace: stages,
+          })
+          return
+        } else {
+          throw event.error
+        }
+      }
+      throw new ApiError('stream_incomplete', 'The stream ended without a result.')
+    } catch {
+      // Streaming failed; fall back to the plain /ask endpoint (hide the trace panel).
+      setState((previous) => ({ ...previous, trace: null }))
+      try {
+        const answer = await askQuestion(trimmed)
+        setState({ status: 'success', question: trimmed, answer, error: null, trace: null })
+      } catch (fallbackError) {
+        const message =
+          fallbackError instanceof ApiError
+            ? fallbackError.message
+            : 'Something went wrong. Please try again.'
+        setState({ status: 'error', question: trimmed, answer: null, error: message, trace: null })
+      }
     }
   }, [])
 
