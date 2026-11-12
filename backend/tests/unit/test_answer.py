@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.agent.answer import Answerer
+from app.agent.tools.base import ToolResult
 from app.core.constants import MEDICAL_DISCLAIMER
 from app.schemas.domain import Claim, Draft, Evidence, EvidenceChunk, Review
 
@@ -96,3 +97,30 @@ async def test_citations_map_to_chunks() -> None:
     assert [citation.id for citation in assembly.citations] == ["S1"]
     assert assembly.citations[0].chunk_id == "e1"
     assert assembly.citations[0].source_file == "dailymed-warfarin.md"
+
+
+async def test_tool_result_produces_citation() -> None:
+    answerer = Answerer()
+    tool_result = ToolResult(
+        tool_result_id="t0",
+        tool="label_section_lookup",
+        arguments={"drug": "apixaban", "section": "contraindications"},
+        status="ok",
+        output={
+            "source_file": "dailymed-apixaban.md",
+            "section": "4 CONTRAINDICATIONS",
+            "text": "active pathological bleeding",
+        },
+    )
+    draft = Draft(
+        claims=[
+            Claim(
+                text="apixaban contraindicated in active pathological bleeding",
+                tool_result_ids=["t0"],
+            )
+        ]
+    )
+    assembly = await answerer.run(draft, Review(verdict="pass"), _evidence(), [tool_result])
+    assert assembly.sources == ["dailymed-apixaban.md"]
+    assert "dailymed-apixaban.md" in assembly.answer
+    assert [citation.source_file for citation in assembly.citations] == ["dailymed-apixaban.md"]

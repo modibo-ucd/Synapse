@@ -1,0 +1,141 @@
+# Golden evaluation questions for the eval harness (Task 8).
+#
+# ``kind`` drives scoring:
+#   answerable             -> every expected file appears in `sources`, every
+#                             expected file name appears in `answer`, every
+#                             must_include fact appears in `answer`
+#                             (case-insensitive), the disclaimer is present, and
+#                             the review has no unsupported claims.
+#   out_of_scope           -> plan.in_scope is false and no sources are cited.
+#   insufficient_evidence  -> the response declines to answer because the corpus
+#                             cannot answer (verdict "insufficient_evidence" or an
+#                             explicit decline in the answer).
+#
+# Every must_include fact was verified verbatim against the corpus file it names.
+questions:
+  - id: q1
+    kind: answerable
+    question: "What are the main contraindications for warfarin?"
+    expected_files:
+      - dailymed-warfarin.md
+    must_include:
+      - pregnancy
+      - hemorrhagic tendencies
+      - hypersensitivity
+  - id: q2
+    kind: answerable
+    question: "Compare the contraindications of warfarin and apixaban. What conditions are shared and which are unique to each drug?"
+    expected_files:
+      - dailymed-warfarin.md
+      - dailymed-apixaban.md
+    must_include:
+      - pregnancy
+      - active pathological bleeding
+      - severe hypersensitivity reaction
+  - id: q3
+    kind: answerable
+    question: "A patient currently on warfarin is prescribed sertraline. What is the risk of bleeding and what monitoring is recommended?"
+    expected_files:
+      - dailymed-warfarin.md
+      - dailymed-sertraline.md
+    must_include:
+      - risk of bleeding
+      - international normalized ratio
+  - id: q4
+    kind: answerable
+    question: "A patient with an eGFR of 25 mL/min is being considered for metformin. Is metformin contraindicated at this level of renal function, and what is the threshold?"
+    expected_files:
+      - dailymed-metformin.md
+    must_include:
+      - contraindicated
+      - below 30
+  - id: q5
+    kind: answerable
+    question: "What is the boxed warning for sertraline?"
+    expected_files:
+      - dailymed-sertraline.md
+    must_include:
+      - suicidal thoughts
+      - pediatric and young adult
+  - id: q6
+    kind: answerable
+    question: "What is the boxed warning for apixaban?"
+    expected_files:
+      - dailymed-apixaban.md
+    must_include:
+      - premature discontinuation
+      - hematoma
+  - id: q7
+    kind: answerable
+    question: "What is the recommended dose of apixaban for patients with atrial fibrillation?"
+    expected_files:
+      - dailymed-apixaban.md
+    must_include:
+      - "5 mg taken orally twice daily"
+  - id: q8
+    kind: answerable
+    question: "What are the contraindications of sertraline?"
+    expected_files:
+      - dailymed-sertraline.md
+    must_include:
+      - pimozide
+      - maoi
+  - id: q9
+    kind: answerable
+    question: "What are the contraindications of ibuprofen?"
+    expected_files:
+      - dailymed-ibuprofen.md
+    must_include:
+      - hypersensitivity to ibuprofen
+      - coronary artery bypass graft
+  - id: q10
+    kind: answerable
+    question: "What is the recommended starting dose of metformin for adults?"
+    expected_files:
+      - dailymed-metformin.md
+    must_include:
+      - "500 mg orally twice a day"
+  - id: q11
+    kind: answerable
+    question: "Can a patient take ibuprofen (an NSAID) together with apixaban? What is the bleeding risk?"
+    expected_files:
+      - dailymed-apixaban.md
+    must_include:
+      - increases the risk of bleeding
+      - nonsteroidal anti-inflammatory
+  - id: q12
+    kind: answerable
+    question: "What is the risk of taking aspirin together with warfarin?"
+    expected_files:
+      - dailymed-warfarin.md
+    must_include:
+      - bleeding
+      - monitor
+  - id: q13
+    kind: answerable
+    question: "What drugs increase the risk of myopathy and rhabdomyolysis when taken with atorvastatin?"
+    expected_files:
+      - dailymed-atorvastatin.md
+    must_include:
+      - myopathy and rhabdomyolysis
+      - clarithromycin
+  - id: q14
+    kind: out_of_scope
+    question: "Write a Python function that sorts a list of numbers."
+    expected_files: []
+    must_include: []
+  - id: q15
+    kind: out_of_scope
+    question: "What is the capital of France?"
+    expected_files: []
+    must_include: []
+  - id: q16
+    kind: insufficient_evidence
+    question: "What is the recommended dose of losartan for high blood pressure?"
+    expected_files: []
+    must_include: []
+  - id: q17
+    kind: insufficient_evidence
+    question: "What is the recommended starting dose of levothyroxine for hypothyroidism?"
+    expected_files: []
+    must_include: []

@@ -25,8 +25,8 @@ CHARS_PER_TOKEN = 4.0
 
 # Hybrid retrieval defaults (configurable via Settings/environment).
 RRF_K = 60
-RETRIEVAL_TOP_K = 20
-RETRIEVAL_TOKEN_BUDGET = 4000
+RETRIEVAL_TOP_K = 12
+RETRIEVAL_TOKEN_BUDGET = 3000
 INDEX_READY_TIMEOUT_S = 30.0
 
 # Agent tool execution budget.

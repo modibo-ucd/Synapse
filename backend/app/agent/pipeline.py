@@ -105,9 +105,9 @@ class Pipeline:
         )
         tool_results = self._tool_runner.last_tool_results
         review = await context.run_stage(
-            "review", self._reviewer.run, draft, evidence, tool_results
+            "review", self._reviewer.run, draft, evidence, tool_results, question
         )
         answer = await context.run_stage(
-            "answer", self._answerer.run, draft, review, evidence, tool_results
+            "answer", self._answerer.run, draft, review, evidence, tool_results, question
         )
         return plan, evidence, review, answer, tool_results

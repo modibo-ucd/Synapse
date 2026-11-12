@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–7 completed 2026-11-12. Next: Task 8 (Eval harness + tuning).
+Tasks 0–8 completed 2026-11-12. Next: Task 9 (React UI).
 
 ## Checklist
 
@@ -14,7 +14,7 @@ Tasks 0–7 completed 2026-11-12. Next: Task 8 (Eval harness + tuning).
 - [x] 5 Plan + Tools — planner + typed local tool registry
 - [x] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
 - [x] 7 /ask API — FastAPI routes (/health, /ask) + schemas
-- [ ] 8 Eval harness + tuning — evaluation of the public questions
+- [x] 8 Eval harness + tuning — golden YAML, runner, scoring + tuning fixes
 - [ ] 9 React UI — chat frontend
 - [ ] 10 Dockerfile — multi-stage build, graded command
 - [ ] 11 Submission gate — Definition of Done checklist
@@ -154,6 +154,35 @@ BM25 contributing exact-term recall.
 questions (2, 3) exceed the 90s hard timeout → clean 504 (mapping works). Cause:
 the evidence is re-sent at every stage and the ~4000-token (chars/4) budget
 underestimates real tokens, so multi-hop contexts are large. → Task 8 tuning item.
+
+### Task 8 eval harness + tuning (2026-11-12)
+
+Added `backend/tests/eval/`: `golden_questions.yaml` (17 golden questions — the
+4 public ones verbatim + 6 single-document lookups across other drugs + 3
+multi-drug/multi-hop (NSAID+anticoagulant, aspirin+warfarin, statin) + 2
+out-of-scope + 2 unanswerable; every must-include fact verified verbatim against
+the corpus file), `scoring.py` (pure deterministic scoring: expected files in
+`sources`, file names in `answer`, must-include facts, disclaimer, no unsupported
+flags, latency budget), and `run.py` (`python -m tests.eval.run [--only ID]
+[--runs N]`, marker `llm_live` excluded from default pytest via `addopts`, hits
+the running API, prints a table and writes `docs/eval_results.md`). Added
+`pyyaml` to dev extras.
+
+Tuning fixes (before → after, real proxy gpt-5.6-terra):
+- Multi-drug Q2/Q3 timed out at >90s → lowered `RETRIEVAL_TOP_K` 20→12 and
+  `RETRIEVAL_TOKEN_BUDGET` 4000→3000; the review stage now sends only the
+  evidence/tool results cited by the draft (was the full evidence). Q2/Q3 now
+  finish in ~10–45s.
+- Q2 sometimes cited only one drug → the retriever now guarantees one chunk per
+  named drug survives the token budget, and the Answerer emits citations for tool
+  results that name a `source_file` (e.g. `label_section_lookup`).
+- Q4 "revise" (false unsupported flag on the query value 25) → review/answer now
+  exclude numbers present in the original question.
+- Review over-flagged paraphrases → review prompt tightened to flag only facts
+  absent from cited text; draft prompt now hedges absence/completeness claims.
+
+Final eval: **17/17** (4 public ×2 runs = 8/8; full 17-question run = 17/17),
+p50 latency ~15s. Saved to `docs/eval_results.md`.
 
 ## Known issues
 

@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from app.agent.review import Reviewer, cited_text_for, missing_numbers
+from app.agent.review import (
+    Reviewer,
+    cited_chunks_for,
+    cited_text_for,
+    extract_numbers,
+    missing_numbers,
+)
 from app.agent.tools.base import ToolResult
 from app.schemas.domain import Claim, Draft, Evidence, EvidenceChunk, Review
 from tests.fakes.llm import FakeLLMClient
@@ -25,6 +31,21 @@ def test_missing_numbers_verbatim() -> None:
     assert missing_numbers("eGFR below 30", "eGFR below 30 mL/min") == []
     assert missing_numbers("eGFR below 35", "eGFR below 30 mL/min") == ["35"]
     assert missing_numbers("2.5 mg", "dose 2.5 mg daily") == []
+
+
+def test_missing_numbers_allows_question_numbers() -> None:
+    allowed = extract_numbers("eGFR of 25 mL/min")
+    assert missing_numbers("contraindicated at eGFR 25", "contraindicated below 30", allowed) == []
+    assert missing_numbers("contraindicated below 30", "contraindicated below 30", allowed) == []
+
+
+def test_cited_chunks_for_filters_unreferenced() -> None:
+    evidence = Evidence(
+        chunks=[_chunk("e1", "text one"), _chunk("e2", "text two")],
+        retrieval_mode="hybrid",
+    )
+    claims = [Claim(text="x", evidence_ids=["e1"])]
+    assert [chunk.chunk_id for chunk in cited_chunks_for(claims, evidence)] == ["e1"]
 
 
 def test_cited_text_for_claim() -> None:
@@ -68,6 +89,21 @@ async def test_reviewer_merges_llm_flags() -> None:
     assert review.verdict == "revise"
     assert "claim is unsupported" in review.unsupported_claims
     assert "vague dosing" in review.ambiguity_flags
+
+
+async def test_reviewer_ignores_question_numbers() -> None:
+    fake = FakeLLMClient()
+    fake.script_structured(Review(verdict="pass"))
+    reviewer = Reviewer(fake)
+    draft = Draft(
+        claims=[Claim(text="metformin contraindicated at eGFR 25 (below 30)", evidence_ids=["e1"])]
+    )
+    evidence = Evidence(
+        chunks=[_chunk("e1", "metformin contraindicated below 30")],
+        retrieval_mode="hybrid",
+    )
+    review = await reviewer.run(draft, evidence, [], question="eGFR of 25 mL/min")
+    assert review.verdict == "pass"
 
 
 async def test_reviewer_insufficient_evidence() -> None:

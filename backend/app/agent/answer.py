@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agent.review import cited_text_for, missing_numbers
+from app.agent.review import cited_text_for, extract_numbers, missing_numbers
 from app.agent.tools.base import ToolResult
 from app.core.constants import MEDICAL_DISCLAIMER
 from app.schemas.domain import (
@@ -28,18 +28,32 @@ class Answerer:
         self._disclaimer = disclaimer
 
     async def run(
-        self, draft: Draft, review: Review, evidence: Evidence, tool_results: list[ToolResult]
+        self,
+        draft: Draft,
+        review: Review,
+        evidence: Evidence,
+        tool_results: list[ToolResult],
+        question: str = "",
     ) -> AnswerAssembly:
         if review.verdict == "insufficient_evidence":
             return self._insufficient()
 
+        allowed = extract_numbers(question)
         kept = [
-            claim for claim in draft.claims if self._supported(claim, evidence, tool_results)
+            claim for claim in draft.claims
+            if self._supported(claim, evidence, tool_results, allowed)
         ]
+
         cited_chunks = self._cited_chunks(kept, evidence)
-        chunk_id_to_citation = {
+        cited_tools = self._cited_tools(kept, tool_results)
+        chunk_markers = {
             chunk.chunk_id: f"S{index}" for index, chunk in enumerate(cited_chunks, start=1)
         }
+        tool_markers = {
+            result.tool_result_id: f"S{len(cited_chunks) + index}"
+            for index, result in enumerate(cited_tools, start=1)
+        }
+
         citations = [
             Citation(
                 id=f"S{index}",
@@ -50,15 +64,25 @@ class Answerer:
             )
             for index, chunk in enumerate(cited_chunks, start=1)
         ]
+        citations += [
+            self._tool_citation(f"S{len(cited_chunks) + index}", result)
+            for index, result in enumerate(cited_tools, start=1)
+        ]
 
-        lines = [f"- {claim.text}{self._markers(claim, chunk_id_to_citation)}" for claim in kept]
+        lines = [
+            f"- {claim.text}{self._markers(claim, chunk_markers, tool_markers)}"
+            for claim in kept
+        ]
         if not lines:
             lines = [
                 "The retrieved evidence and tools do not contain enough information to answer."
             ]
+        source_files = sorted(
+            {chunk.source_file for chunk in cited_chunks}
+            | {self._tool_source_file(result) for result in cited_tools}
+        )
         source_lines = "\n".join(
-            f"{index}. {chunk.source_file} — {chunk.section}"
-            for index, chunk in enumerate(cited_chunks, start=1)
+            f"{index}. {source_file}" for index, source_file in enumerate(source_files, start=1)
         ) or "None."
         answer = (
             "\n".join(lines)
@@ -69,7 +93,7 @@ class Answerer:
 
         return AnswerAssembly(
             answer=answer,
-            sources=sorted({chunk.source_file for chunk in cited_chunks}),
+            sources=source_files,
             citations=citations,
             disclaimer=self._disclaimer,
         )
@@ -86,14 +110,19 @@ class Answerer:
         return AnswerAssembly(answer=answer, sources=[], citations=[], disclaimer=self._disclaimer)
 
     @staticmethod
-    def _supported(claim: Claim, evidence: Evidence, tool_results: list[ToolResult]) -> bool:
+    def _supported(
+        claim: Claim,
+        evidence: Evidence,
+        tool_results: list[ToolResult],
+        allowed: set[str],
+    ) -> bool:
         has_reference = any(
             chunk.chunk_id in claim.evidence_ids for chunk in evidence.chunks
         ) or any(result.tool_result_id in claim.tool_result_ids for result in tool_results)
         if not has_reference:
             return False
         cited = cited_text_for(claim, evidence, tool_results)
-        return not missing_numbers(claim.text, cited)
+        return not missing_numbers(claim.text, cited, allowed)
 
     @staticmethod
     def _cited_chunks(kept: list[Claim], evidence: Evidence) -> list[EvidenceChunk]:
@@ -109,11 +138,51 @@ class Answerer:
         return ordered
 
     @staticmethod
-    def _markers(claim: Claim, chunk_id_to_citation: dict[str, str]) -> str:
+    def _cited_tools(kept: list[Claim], tool_results: list[ToolResult]) -> list[ToolResult]:
+        """Return the tool results referenced by claims that also name a source file."""
+        by_id = {result.tool_result_id: result for result in tool_results}
+        ordered: list[ToolResult] = []
+        seen: set[str] = set()
+        for claim in kept:
+            for tool_id in claim.tool_result_ids:
+                result = by_id.get(tool_id)
+                if result is not None and result.tool_result_id not in seen:
+                    if Answerer._tool_source_file(result):
+                        seen.add(result.tool_result_id)
+                        ordered.append(result)
+        return ordered
+
+    @staticmethod
+    def _tool_source_file(result: ToolResult) -> str:
+        output = result.output or {}
+        return str(output.get("source_file", ""))
+
+    @staticmethod
+    def _tool_citation(citation_id: str, result: ToolResult) -> Citation:
+        output = result.output or {}
+        text = str(output.get("text") or output.get("supporting_passage") or "")
+        section = str(output.get("section") or output.get("heading_path") or "")
+        return Citation(
+            id=citation_id,
+            source_file=Answerer._tool_source_file(result),
+            section=section,
+            chunk_id=result.tool_result_id,
+            excerpt=Answerer._excerpt(text),
+        )
+
+    @staticmethod
+    def _markers(
+        claim: Claim, chunk_markers: dict[str, str], tool_markers: dict[str, str]
+    ) -> str:
         ids = [
-            chunk_id_to_citation[chunk_id]
+            chunk_markers[chunk_id]
             for chunk_id in claim.evidence_ids
-            if chunk_id in chunk_id_to_citation
+            if chunk_id in chunk_markers
+        ]
+        ids += [
+            tool_markers[tool_id]
+            for tool_id in claim.tool_result_ids
+            if tool_id in tool_markers
         ]
         if not ids:
             return ""

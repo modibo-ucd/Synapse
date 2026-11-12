@@ -28,6 +28,7 @@ dev = [
     "httpx2==2.16.0",
     "ruff==0.17.4",
     "mypy==2.4.1",
+    "pyyaml==6.0.3",
 ]
 
 [tool.setuptools.packages.find]
@@ -54,4 +55,8 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["backend/tests"]
 pythonpath = ["backend"]
-markers = ["real_providers: opt out of the autouse fake-provider fixture"]
+markers = [
+    "real_providers: opt out of the autouse fake-provider fixture",
+    "llm_live: live-LLM evaluation (excluded from default runs)",
+]
+addopts = "-m 'not llm_live'"

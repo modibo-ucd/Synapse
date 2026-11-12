@@ -36,22 +36,55 @@ class Retriever:
         return "hybrid" if self._dense_available else "bm25_only"
 
     async def run(self, plan: Plan) -> Evidence:
-        """Retrieve for every sub-goal in parallel, then dedupe and budget."""
+        """Retrieve for every sub-goal in parallel, then dedupe and budget.
+
+        The drug-coverage rule survives the token budget: at least one chunk per
+        named drug is kept before the remaining budget is filled in ranked order.
+        """
         per_goal = await asyncio.gather(*(self._retrieve_goal(g) for g in plan.sub_goals))
+        ordered: list[EvidenceChunk] = []
         seen: set[str] = set()
-        selected: list[EvidenceChunk] = []
-        used_tokens = 0
         for goal_results in per_goal:
             for chunk in goal_results:
-                if chunk.chunk_id in seen:
-                    continue
-                if selected and used_tokens + chunk.token_count > self._token_budget:
-                    continue
-                seen.add(chunk.chunk_id)
-                selected.append(chunk)
-                used_tokens += chunk.token_count
+                if chunk.chunk_id not in seen:
+                    seen.add(chunk.chunk_id)
+                    ordered.append(chunk)
+
+        named_drugs = {drug for sub_goal in plan.sub_goals for drug in self._named_drugs(sub_goal)}
+        selected, _, used_tokens = self._select(ordered, named_drugs)
+
         mode: RetrievalMode = "hybrid" if self._dense_available else "bm25_only"
         return Evidence(chunks=selected, retrieval_mode=mode)
+
+    def _select(
+        self, ordered: list[EvidenceChunk], named_drugs: set[str]
+    ) -> tuple[list[EvidenceChunk], set[str], int]:
+        """Select chunks within budget, guaranteeing one chunk per named drug."""
+        selected: list[EvidenceChunk] = []
+        selected_ids: set[str] = set()
+        used_tokens = 0
+
+        for drug in named_drugs:
+            for chunk in ordered:
+                if chunk.drug_name != drug or chunk.chunk_id in selected_ids:
+                    continue
+                if used_tokens + chunk.token_count > self._token_budget:
+                    break
+                selected.append(chunk)
+                selected_ids.add(chunk.chunk_id)
+                used_tokens += chunk.token_count
+                break
+
+        for chunk in ordered:
+            if chunk.chunk_id in selected_ids:
+                continue
+            if used_tokens + chunk.token_count > self._token_budget:
+                continue
+            selected.append(chunk)
+            selected_ids.add(chunk.chunk_id)
+            used_tokens += chunk.token_count
+
+        return selected, selected_ids, used_tokens
 
     async def _retrieve_goal(self, sub_goal: SubGoal) -> list[EvidenceChunk]:
         query_vector: list[float] | None = None

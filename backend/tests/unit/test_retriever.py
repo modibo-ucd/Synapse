@@ -94,6 +94,23 @@ async def test_token_budget_enforced() -> None:
     assert sum(chunk.token_count for chunk in evidence.chunks) <= 250
 
 
+async def test_drug_coverage_survives_token_budget() -> None:
+    chunks = [
+        _chunk("w1", "warfarin", "warfarin bleeding risk requires INR monitoring", token_count=100),
+        _chunk("w2", "warfarin", "warfarin dosage 2 to 5 mg", token_count=100),
+        _chunk("a1", "apixaban", "apixaban is a direct oral anticoagulant", token_count=100),
+        _chunk("a2", "apixaban", "apixaban bleeding side effects", token_count=100),
+    ]
+    retriever = _retriever(chunks, {"warfarin", "apixaban"}, top_k=2, token_budget=250)
+    plan = _plan(
+        SubGoal(id="g1", question="warfarin contraindications", entities=["warfarin"]),
+        SubGoal(id="g2", question="apixaban contraindications", entities=["apixaban"]),
+    )
+    evidence = await retriever.run(plan)
+    assert {chunk.drug_name for chunk in evidence.chunks} == {"warfarin", "apixaban"}
+    assert sum(chunk.token_count for chunk in evidence.chunks) <= 250
+
+
 async def test_exact_term_recall() -> None:
     chunks = [
         _chunk(
