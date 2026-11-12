@@ -1,3 +1,4 @@
+import { ComparisonMatrix } from '../../components/ComparisonMatrix'
 import { Markdown } from '../../components/Markdown'
 import { ReviewFlags } from '../../components/ReviewFlags'
 import { SourcesList } from '../../components/SourcesList'
@@ -16,6 +17,9 @@ export function AnswerView({ answer }: AnswerViewProps) {
     >
       <h2 className="mb-2 text-base font-semibold text-slate-800">Answer</h2>
       <Markdown citations={answer.citations}>{answer.answer}</Markdown>
+      {answer.comparison && (
+        <ComparisonMatrix comparison={answer.comparison} citations={answer.citations} />
+      )}
       <ReviewFlags review={answer.review} />
       <SourcesList sources={answer.sources} citations={answer.citations} />
     </div>

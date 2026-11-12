@@ -9,15 +9,28 @@ from app.schemas.domain import (
     AnswerAssembly,
     Citation,
     Claim,
+    Comparison,
+    ComparisonCell,
+    ComparisonRow,
     Draft,
     Evidence,
     EvidenceChunk,
+    Plan,
     Review,
 )
 
 OUT_OF_SCOPE_MESSAGE = (
     "This question is outside the scope of this pharmacology research assistant, which "
     "answers questions grounded in drug labels and consumer medication documents."
+)
+
+# (attribute, section-substrings) used to build the multi-drug comparison matrix.
+_ATTRIBUTES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("contraindications", ("CONTRAINDICATIONS",)),
+    ("boxed_warning", ("WARNING:", "BOXED WARNING")),
+    ("major_risks", ("WARNINGS AND PRECAUTIONS",)),
+    ("monitoring", ("MONITORING", "DOSAGE AND ADMINISTRATION", "CLINICAL PHARMACOLOGY")),
+    ("notable_interactions", ("INTERACTIONS",)),
 )
 
 
@@ -34,6 +47,7 @@ class Answerer:
         evidence: Evidence,
         tool_results: list[ToolResult],
         question: str = "",
+        plan: Plan | None = None,
     ) -> AnswerAssembly:
         if review.verdict == "insufficient_evidence":
             return self._insufficient()
@@ -53,6 +67,7 @@ class Answerer:
             result.tool_result_id: f"S{len(cited_chunks) + index}"
             for index, result in enumerate(cited_tools, start=1)
         }
+        comparison = self._build_comparison(plan, cited_chunks, chunk_markers)
 
         citations = [
             Citation(
@@ -96,6 +111,7 @@ class Answerer:
             sources=source_files,
             citations=citations,
             disclaimer=self._disclaimer,
+            comparison=comparison,
         )
 
     def run_out_of_scope(self) -> AnswerAssembly:
@@ -206,6 +222,53 @@ class Answerer:
         if space > 0:
             return window[:space].rstrip() + "…"
         return window.rstrip() + "…"
+
+    @staticmethod
+    def _build_comparison(
+        plan: Plan | None,
+        cited_chunks: list[EvidenceChunk],
+        chunk_markers: dict[str, str],
+    ) -> Comparison | None:
+        """Build the comparison matrix for multi_hop plans spanning 2+ drugs."""
+        if plan is None or plan.complexity != "multi_hop":
+            return None
+        drugs = sorted({chunk.drug_name for chunk in cited_chunks})
+        if len(drugs) < 2:
+            return None
+        rows = [
+            ComparisonRow(
+                attribute=attribute,
+                values={
+                    drug: Answerer._comparison_cell(drug, keywords, cited_chunks, chunk_markers)
+                    for drug in drugs
+                },
+            )
+            for attribute, keywords in _ATTRIBUTES
+        ]
+        return Comparison(drugs=drugs, rows=rows)
+
+    @staticmethod
+    def _comparison_cell(
+        drug: str,
+        keywords: tuple[str, ...],
+        cited_chunks: list[EvidenceChunk],
+        chunk_markers: dict[str, str],
+    ) -> ComparisonCell:
+        matches = [
+            chunk
+            for chunk in cited_chunks
+            if chunk.drug_name == drug
+            and any(keyword in chunk.section.upper() for keyword in keywords)
+        ]
+        if not matches:
+            return ComparisonCell(text="Not stated in sources", citation_ids=[])
+        text = Answerer._excerpt(" ".join(chunk.text for chunk in matches), limit=240)
+        citation_ids = [
+            chunk_markers[chunk.chunk_id]
+            for chunk in matches
+            if chunk.chunk_id in chunk_markers
+        ]
+        return ComparisonCell(text=text, citation_ids=citation_ids)
 
     @staticmethod
     def _review_notes(review: Review) -> str:

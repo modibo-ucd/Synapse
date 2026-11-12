@@ -5,7 +5,7 @@ from __future__ import annotations
 from app.agent.answer import Answerer
 from app.agent.tools.base import ToolResult
 from app.core.constants import MEDICAL_DISCLAIMER
-from app.schemas.domain import Claim, Draft, Evidence, EvidenceChunk, Review
+from app.schemas.domain import Claim, Draft, Evidence, EvidenceChunk, Plan, Review
 
 
 def _chunk(chunk_id: str, source_file: str, section: str, text: str) -> EvidenceChunk:
@@ -141,4 +141,46 @@ def test_excerpt_truncates_on_sentence_boundary() -> None:
 def test_excerpt_keeps_short_text_untouched() -> None:
     short = "A short passage."
     assert Answerer._excerpt(short) == short
+
+
+async def test_comparison_built_for_multi_hop() -> None:
+    answerer = Answerer()
+    warfarin = _chunk(
+        "e1", "dailymed-warfarin.md", "4 CONTRAINDICATIONS",
+        "warfarin is contraindicated in pregnancy",
+    ).model_copy(update={"drug_name": "warfarin"})
+    apixaban = _chunk(
+        "e2", "dailymed-apixaban.md", "4 CONTRAINDICATIONS",
+        "apixaban is contraindicated in active pathological bleeding",
+    ).model_copy(update={"drug_name": "apixaban"})
+
+    evidence = Evidence(chunks=[warfarin, apixaban], retrieval_mode="hybrid")
+    draft = Draft(
+        claims=[
+            Claim(text="warfarin contraindicated in pregnancy", evidence_ids=["e1"]),
+            Claim(text="apixaban contraindicated in active bleeding", evidence_ids=["e2"]),
+        ]
+    )
+    plan = Plan(complexity="multi_hop", in_scope=True, sub_goals=[])
+
+    assembly = await answerer.run(draft, Review(verdict="pass"), evidence, [], plan=plan)
+
+    assert assembly.comparison is not None
+    assert assembly.comparison.drugs == ["apixaban", "warfarin"]
+    row = next(r for r in assembly.comparison.rows if r.attribute == "contraindications")
+    assert row.values["warfarin"].citation_ids
+    assert "pregnancy" in row.values["warfarin"].text
+    assert row.values["apixaban"].citation_ids
+    # A cell with no matching section is explicit "Not stated in sources".
+    monitoring = next(r for r in assembly.comparison.rows if r.attribute == "monitoring")
+    assert monitoring.values["warfarin"].text == "Not stated in sources"
+    assert monitoring.values["warfarin"].citation_ids == []
+
+
+async def test_no_comparison_for_simple_plan() -> None:
+    answerer = Answerer()
+    draft = Draft(claims=[Claim(text="warfarin contraindicated in pregnancy", evidence_ids=["e1"])])
+    plan = Plan(complexity="simple", in_scope=True, sub_goals=[])
+    assembly = await answerer.run(draft, Review(verdict="pass"), _evidence(), [], plan=plan)
+    assert assembly.comparison is None
 

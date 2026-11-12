@@ -73,7 +73,7 @@ def test_ask_returns_200_with_valid_schema(monkeypatch, tmp_path) -> None:
     body = resp.json()
     assert set(body) == {
         "answer", "sources", "citations", "disclaimer", "plan", "tool_calls",
-        "review", "retrieval_mode", "trace_id", "usage", "latency_ms",
+        "review", "retrieval_mode", "trace_id", "usage", "latency_ms", "comparison",
     }
     assert body["disclaimer"] and body["disclaimer"] in body["answer"]
     assert "dailymed-warfarin.md" in body["answer"]

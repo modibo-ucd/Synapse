@@ -92,6 +92,7 @@ class Pipeline:
             trace_id=trace_id,
             usage=Usage(tokens_in=self._usage.tokens_in, tokens_out=self._usage.tokens_out),
             latency_ms=latency_ms,
+            comparison=answer.comparison,
         )
 
     async def _run_stages(
@@ -124,6 +125,6 @@ class Pipeline:
             "review", self._reviewer.run, draft, evidence, tool_results, question
         )
         answer = await context.run_stage(
-            "answer", self._answerer.run, draft, review, evidence, tool_results, question
+            "answer", self._answerer.run, draft, review, evidence, tool_results, question, plan
         )
         return plan, evidence, review, answer, tool_results

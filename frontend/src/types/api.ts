@@ -38,6 +38,21 @@ export const UsageSchema = z.object({
   tokens_out: z.number().default(0),
 })
 
+export const ComparisonCellSchema = z.object({
+  text: z.string(),
+  citation_ids: z.array(z.string()).default([]),
+})
+
+export const ComparisonRowSchema = z.object({
+  attribute: z.string(),
+  values: z.record(z.string(), ComparisonCellSchema),
+})
+
+export const ComparisonSchema = z.object({
+  drugs: z.array(z.string()).default([]),
+  rows: z.array(ComparisonRowSchema).default([]),
+})
+
 export const AskResponseSchema = z
   .object({
     answer: z.string(),
@@ -51,6 +66,7 @@ export const AskResponseSchema = z
     trace_id: z.string().default(''),
     usage: UsageSchema.default({ tokens_in: 0, tokens_out: 0 }),
     latency_ms: z.number().default(0),
+    comparison: ComparisonSchema.nullable().optional(),
   })
   .passthrough()
 
@@ -102,3 +118,4 @@ export type Review = z.infer<typeof ReviewSchema>
 export type AskResponse = z.infer<typeof AskResponseSchema>
 export type ApiErrorPayload = z.infer<typeof ApiErrorPayloadSchema>
 export type StageEvent = z.infer<typeof StageEventSchema>
+export type Comparison = z.infer<typeof ComparisonSchema>

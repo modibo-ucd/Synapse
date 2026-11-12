@@ -155,6 +155,33 @@ class ToolCallRecord(BaseModel):
     status: Literal["ok", "error"]
 
 
+class ComparisonCell(BaseModel):
+    """One grounded cell in the multi-drug comparison matrix."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    text: str
+    citation_ids: list[str] = Field(default_factory=list)
+
+
+class ComparisonRow(BaseModel):
+    """One attribute row in the comparison matrix, keyed by drug name."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    attribute: str
+    values: dict[str, ComparisonCell] = Field(default_factory=dict)
+
+
+class Comparison(BaseModel):
+    """A validated multi-drug comparison matrix (optional)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    drugs: list[str] = Field(default_factory=list)
+    rows: list[ComparisonRow] = Field(default_factory=list)
+
+
 class Usage(BaseModel):
     """Aggregated token usage across the pipeline."""
 
@@ -173,6 +200,7 @@ class AnswerAssembly(BaseModel):
     sources: list[str] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
     disclaimer: str = ""
+    comparison: Comparison | None = None
 
 
 class AskResponse(BaseModel):
@@ -191,6 +219,7 @@ class AskResponse(BaseModel):
     trace_id: str
     usage: Usage
     latency_ms: float
+    comparison: Comparison | None = None
 
 
 class AskRequest(BaseModel):
