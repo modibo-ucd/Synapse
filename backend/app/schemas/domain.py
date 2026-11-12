@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 SourceType = Literal["dailymed", "medlineplus"]
 
@@ -191,3 +191,19 @@ class AskResponse(BaseModel):
     trace_id: str
     usage: Usage
     latency_ms: float
+
+
+class AskRequest(BaseModel):
+    """POST /ask request body (tolerates harmless extra fields)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    question: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("question")
+    @classmethod
+    def strip_question(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("question must not be empty")
+        return value

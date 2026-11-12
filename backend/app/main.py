@@ -9,12 +9,14 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
 
+from app.api.ask import router as ask_router
 from app.api.health import router as health_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, request_id_var
 from app.providers import openai as openai_providers
 from app.retrieval.index_manager import IndexManager
+from app.services.ask_service import AskService
 
 
 @asynccontextmanager
@@ -25,6 +27,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     index_manager = IndexManager(settings, openai_providers.build_embedding_provider(settings))
     index_manager.start()
     app.state.index_manager = index_manager
+    app.state.ask_service = AskService(settings, index_manager)
     app.state.index_status = "building"
     try:
         yield
@@ -55,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(health_router)
+    app.include_router(ask_router)
     return app
 
 

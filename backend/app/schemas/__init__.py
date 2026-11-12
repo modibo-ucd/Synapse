@@ -2,6 +2,7 @@
 
 from app.schemas.domain import (
     AnswerAssembly,
+    AskRequest,
     AskResponse,
     Chunk,
     Citation,
@@ -21,6 +22,7 @@ from app.schemas.domain import (
 
 __all__ = [
     "AnswerAssembly",
+    "AskRequest",
     "AskResponse",
     "Chunk",
     "Citation",

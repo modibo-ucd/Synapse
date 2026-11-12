@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–6 completed 2026-11-12. Next: Task 7 (/ask API).
+Tasks 0–7 completed 2026-11-12. Next: Task 8 (Eval harness + tuning).
 
 ## Checklist
 
@@ -13,7 +13,7 @@ Tasks 0–6 completed 2026-11-12. Next: Task 7 (/ask API).
 - [x] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
 - [x] 5 Plan + Tools — planner + typed local tool registry
 - [x] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
-- [ ] 7 /ask API — FastAPI routes (/health, /ask) + schemas
+- [x] 7 /ask API — FastAPI routes (/health, /ask) + schemas
 - [ ] 8 Eval harness + tuning — evaluation of the public questions
 - [ ] 9 React UI — chat frontend
 - [ ] 10 Dockerfile — multi-stage build, graded command
@@ -128,6 +128,32 @@ BM25 contributing exact-term recall.
     tool_calls/review/retrieval_mode/trace_id/usage/latency_ms`). `TokenTrackingLLMClient`
     accumulates token usage; `ToolRunner` exposes `last_tool_results`; `Retriever`
     exposes `retrieval_mode`.
+16. **POST /ask (Task 7)** — `AskRequest` (question 1-2000 chars, stripped,
+    `extra="ignore"`), `AskService` (lazy pipeline build, provider-error → AppError
+    translation, one structured JSON log line per request with request_id/latency/
+    tokens/verdict/tool names/retrieval_mode — never the question), thin `api/ask.py`
+    router with `response_model=AskResponse`. Error mapping: missing/invalid key →
+    503, rate limit → 429, timeout → 504, invalid payload → 422, unexpected → 500.
+    `JsonFormatter` now merges extra fields and silences httpx/httpx2/openai INFO
+    logs (so the base URL is never logged). Integration tests (TestClient + fakes):
+    200 + schema + 5 stage events + citations/sources/disclaimer, 422 validation,
+    no-key → 503.
+
+### Task 7 manual eval (real proxy, gpt-5.6-terra)
+
+| Q | Result | Verdict | Latency | Tokens (in/out) |
+|---|--------|---------|---------|-----------------|
+| 1 Warfarin contraindications | 200 ✓ | pass | 25.3s | 13,337 / 1,336 |
+| 2 Warfarin vs apixaban | 504 (timeout) | — | >90s | — |
+| 3 Warfarin + sertraline | 504 (timeout) | — | >90s | — |
+| 4 Metformin eGFR 25 | 200 ✓ | revise | 62.8s | 36,073 / 3,632 |
+| 5 Apixaban MoA | 200 ✓ | pass | 14.2s | 48,846 / 4,162 |
+| 6 INR meaning/monitoring | 200 ✓ | revise | 20.2s | 63,063 / 5,587 |
+
+4/6 succeed with correct sources and grounded, cited answers. The two multi-drug
+questions (2, 3) exceed the 90s hard timeout → clean 504 (mapping works). Cause:
+the evidence is re-sent at every stage and the ~4000-token (chars/4) budget
+underestimates real tokens, so multi-hop contexts are large. → Task 8 tuning item.
 
 ## Known issues
 

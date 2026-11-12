@@ -113,7 +113,10 @@ def main() -> int:
         }
         last_err: Exception | None = None
         for fmt in (
-            {"type": "json_schema", "json_schema": {"name": "plan", "schema": schema, "strict": True}},
+            {
+                "type": "json_schema",
+                "json_schema": {"name": "plan", "schema": schema, "strict": True},
+            },
             {"type": "json_object"},
         ):
             try:
