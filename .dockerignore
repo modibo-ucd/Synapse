@@ -1,0 +1,29 @@
+# VCS
+.git
+
+# Secrets & confidential assignment material (never in the image)
+.env
+.env.*
+*.pdf
+
+# Python build/runtime artifacts
+.venv
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.coverage
+htmlcov
+coverage.xml
+
+# Frontend (dependencies are installed via npm ci; dist is rebuilt in the image)
+node_modules
+frontend/dist
+
+# Tests, docs and dev helpers (not needed at runtime)
+**/tests
+docs
+scripts
+*.log

@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–9 completed 2026-11-12. Next: Task 10 (Dockerfile).
+Tasks 0–10 completed 2026-11-12. Next: Task 11 (submission gate).
 
 ## Checklist
 
@@ -16,7 +16,7 @@ Tasks 0–9 completed 2026-11-12. Next: Task 10 (Dockerfile).
 - [x] 7 /ask API — FastAPI routes (/health, /ask) + schemas
 - [x] 8 Eval harness + tuning — golden YAML, runner, scoring + tuning fixes
 - [x] 9 React UI — chat frontend
-- [ ] 10 Dockerfile — multi-stage build, graded command
+- [x] 10 Dockerfile — multi-stage build, graded command
 - [ ] 11 Submission gate — Definition of Done checklist
 - [ ] 12 Streaming trace — SSE stage events + trace panel
 - [ ] 13 Interactive citations — hover/focus preview
@@ -198,6 +198,25 @@ precedence); the API still starts when `dist` is absent. Verified: `npm run buil
 `tsc --noEmit`, `eslint .`, `vitest run` (11 tests), backend `ruff`/`mypy`/`pytest`
 (154), and end-to-end `/` serving + `POST /ask` (Q1 → 200, sources
 `dailymed-warfarin.md`/`medlineplus-warfarin.md`, review `pass`, ~19s).
+
+### Task 10 Dockerfile (2026-11-12)
+
+Added a multi-stage root `Dockerfile` (node:22-alpine → python:3.11-slim build →
+python:3.11-slim runtime) plus `.dockerignore`. Runtime runs as non-root `appuser`
+(uid 10001), copies only the venv, `backend/`, `corpus/` and `frontend/dist`, sets
+`CORPUS_DIR=/app/corpus`, a writable `CACHE_DIR=/tmp/synapse-cache`, a `HEALTHCHECK`
+on `/health`, and exec-form `uvicorn app.main:app --app-dir /app/backend`.
+
+Verified with the exact graded command (cold build **470s**, image **415 MB**):
+`/health` 200 in **7.9s**, index ready in **16.8s**, and all 4 public questions
+return 200 with correct sources (pass verdict). Robustness checks all pass:
+(a) different values (fake endpoint → clean 502, DEBUG logs prove LOG_LEVEL read),
+(b) values wrapped in quotes (stripped correctly → 200), (c) invalid key (stays up,
+`/health` 200, `/ask` clean 503), (d) no `OPENAI_BASE_URL` (llm_configured false,
+clean 503), (e) runs as non-root (uid 10001), (f) UI loads at `/`.
+
+Fix: `numpy==2.5.4` requires Python ≥3.12, conflicting with the graded
+`python:3.11-slim` base — re-pinned to `numpy==2.4.6` (same 2.x API surface).
 
 ## Known issues
 
