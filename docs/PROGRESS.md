@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–8 completed 2026-11-12. Next: Task 9 (React UI).
+Tasks 0–9 completed 2026-11-12. Next: Task 10 (Dockerfile).
 
 ## Checklist
 
@@ -15,7 +15,7 @@ Tasks 0–8 completed 2026-11-12. Next: Task 9 (React UI).
 - [x] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
 - [x] 7 /ask API — FastAPI routes (/health, /ask) + schemas
 - [x] 8 Eval harness + tuning — golden YAML, runner, scoring + tuning fixes
-- [ ] 9 React UI — chat frontend
+- [x] 9 React UI — chat frontend
 - [ ] 10 Dockerfile — multi-stage build, graded command
 - [ ] 11 Submission gate — Definition of Done checklist
 - [ ] 12 Streaming trace — SSE stage events + trace panel
@@ -183,6 +183,21 @@ Tuning fixes (before → after, real proxy gpt-5.6-terra):
 
 Final eval: **17/17** (4 public ×2 runs = 8/8; full 17-question run = 17/17),
 p50 latency ~15s. Saved to `docs/eval_results.md`.
+
+### Task 9 React UI (2026-11-12)
+
+Added `frontend/` (Vite 6 + React 18 + TypeScript strict + Tailwind v3). A typed API
+client (`lib/api.ts`) validates `/ask` responses with Zod (`types/api.ts`) and maps the
+`{"error":{...}}` shape to a typed `ApiError`. Chat page with textarea (Enter sends,
+Shift+Enter newline), loading/error/empty states, the 4 public eval questions as
+clickable examples, sanitized Markdown (`react-markdown` + `remark-gfm` +
+`rehype-sanitize`, no `dangerouslySetInnerHTML`), a Sources list, review flags, and an
+always-visible medical disclaimer. `backend/app/main.py` now mounts `frontend/dist`
+at `/assets` with an SPA fallback registered after the API routers (API routes keep
+precedence); the API still starts when `dist` is absent. Verified: `npm run build`,
+`tsc --noEmit`, `eslint .`, `vitest run` (11 tests), backend `ruff`/`mypy`/`pytest`
+(154), and end-to-end `/` serving + `POST /ask` (Q1 → 200, sources
+`dailymed-warfarin.md`/`medlineplus-warfarin.md`, review `pass`, ~19s).
 
 ## Known issues
 

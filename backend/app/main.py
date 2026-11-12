@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 
 from app.api.ask import router as ask_router
 from app.api.health import router as health_router
@@ -35,6 +37,36 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await index_manager.shutdown()
 
 
+FRONTEND_DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+
+def mount_frontend(app: FastAPI) -> None:
+    """Serve the built React UI at / with an SPA fallback when ``dist`` exists.
+
+    Registered after the API routers so /health, /ask and the docs routes keep
+    precedence. When the build output is absent (local dev) this is a no-op and
+    the API still starts normally.
+    """
+    dist_dir = FRONTEND_DIST_DIR
+    index_path = dist_dir / "index.html"
+    if not index_path.is_file():
+        return
+
+    assets_dir = dist_dir / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    dist_resolved = dist_dir.resolve()
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str) -> FileResponse:
+        if full_path:
+            candidate = (dist_resolved / full_path).resolve()
+            if candidate.is_relative_to(dist_resolved) and candidate.is_file():
+                return FileResponse(candidate)
+        return FileResponse(index_path)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build and configure the FastAPI application."""
     settings = settings or get_settings()
@@ -59,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(ask_router)
+    mount_frontend(app)
     return app
 
 
