@@ -1,67 +1,78 @@
-# CLAUDE.md - Agentic Pharmacological Research Platform (SYNTAX BOOTCAMP)
+# .clinerules - Synapse: Agentic Pharmacology Research Assistant (Syntax GenAI Bootcamp)
 
-> Keywords MUST, MUST NOT, SHOULD, and MAY are used as in RFC 2119.
-> Conflict resolution order: **Medical safety & Security > Mandatory 5-stage pipeline > Priority gates > Style preferences.**
-
----
-
-# 1. Project Overview
-
-An agentic research assistant over a corpus of FDA/DailyMed Markdown files plus a glossary. It answers both simple and complex multi-hop pharmacology questions with grounded, cited answers.
-
-| Layer                  | Technology                                                                  |
-| ---------------------- | --------------------------------------------------------------------------- |
-| Backend                | Python 3.11+, FastAPI (async), Pydantic v2, SQLAlchemy 2.0 (async), Alembic |
-| Database               | PostgreSQL + `pgvector` (relational + vector in one store)                  |
-| Performance & Security | Redis (rate limiting, semantic cache), JWT + TOTP 2FA, RBAC                 |
-| Frontend               | React + TypeScript (strict), Vite, Tailwind CSS                             |
-| Deployment             | Docker (multi-stage), Docker Compose                                        |
-| Testing                | `pytest` + `pytest-asyncio` (strict LLM mocking), Playwright (E2E)          |
+> Keywords MUST, MUST NOT, SHOULD, MAY are used as in RFC 2119.
+> Conflict resolution order: **Assignment constraints > Medical safety & Security > 5-stage pipeline > Priority gates > Style.**
+> Source of truth for requirements: `assignment-pharma.pdf` (kept locally, never committed). If anything here conflicts with the PDF, STOP and tell the owner.
 
 ---
 
-# 2. Language Policy (Non-Negotiable)
+# 1. Assignment Constraints (highest priority - never violate)
 
-- ALL generated source code, identifiers, inline comments, docstrings, commit messages, README/docs, log messages, API error messages, UI strings, test names, and prompt templates MUST be written in **ENGLISH**.
-- This applies even if the user writes to you in another language. Reply to the user in their language, but NEVER write non-English text into the repository.
-- Comments explain **why**, never **what**. Public functions, classes, and modules get English docstrings (Google style).
+## 1.1 Graded interface
+
+- A `Dockerfile` at the repo root. Graders run EXACTLY:
+  `docker build -t agent . && docker run -p 8000:8000 --env-file .env agent`
+- The container MUST be **self-contained**: NO PostgreSQL, pgvector, Redis, Docker Compose, or any other external service. The only external dependency is the OpenAI-compatible LiteLLM endpoint configured through environment variables.
+- Graders inject THEIR OWN `.env`. Only these variables are guaranteed: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`. Every other setting MUST have a safe, working default. Never require an extra variable. Read env values defensively (strip whitespace and surrounding quotes: `docker --env-file` does not strip quotes).
+- `GET /health` MUST return HTTP 200 always, including while the index is still building or when the LLM endpoint is unreachable or the key is missing.
+- `POST /ask` with `{"question": "..."}` MUST return HTTP 200 with an answer. No authentication, no extra headers, no extra required fields.
+- A minimal frontend that calls `POST /ask` and shows the answer, served by the SAME container on port 8000 at `/`.
+
+## 1.2 Graded agent behavior (strict 5-stage loop)
+
+1. **Plan** - decompose the question into sub-questions/steps.
+2. **Retrieve** - fetch relevant passages from the corpus using **in-memory similarity**.
+3. **Tools** - at least two local tools, chosen by the agent through native function calling. Tool choice MUST NOT be hardcoded (no keyword routing).
+4. **Review** - a critic step verifies grounding and flags unsupported or clinically ambiguous claims BEFORE the final answer is emitted.
+5. **Answer** - a cited response referencing the source file(s) used, with an explicit disclaimer that the output is not medical advice.
+
+## 1.3 Repository & policy
+
+- Public Git repository (GitLab preferred). Dependencies pinned in `pyproject.toml`.
+- MUST commit the AI coding configuration (`.clinerules`, `docs/`).
+- MUST NOT commit: `.env`, any API key or real base URL, `assignment-pharma.pdf` (confidential), `.venv`, `node_modules`, caches, build output.
+- **The author is accountable for every line.** Prefer simple, readable code the author can explain in an interview. No dead code, no speculative abstractions, no unused dependencies. `docs/WALKTHROUGH.md` explains each module and its design decisions.
+- Public evaluation questions (hidden ones will be similar: single-document lookups and multi-drug / multi-hop reasoning):
+  1. "What are the main contraindications for warfarin?" -> `dailymed-warfarin.md`
+  2. "Compare the contraindications of warfarin and apixaban. What conditions are shared and which are unique to each drug?" -> `dailymed-warfarin.md`, `dailymed-apixaban.md`
+  3. "A patient currently on warfarin is prescribed sertraline. What is the risk of bleeding and what monitoring is recommended?" -> `dailymed-warfarin.md`, `dailymed-sertraline.md`
+  4. "A patient with an eGFR of 25 mL/min is being considered for metformin. Is metformin contraindicated at this level of renal function, and what is the threshold?" -> `dailymed-metformin.md`
 
 ---
 
-# 3. Scope Control & Priority Gates
+# 2. Language Policy
 
-Work strictly in priority order. Do not start a tier until the previous tier is green (tests pass, Docker builds).
+- ALL source code, identifiers, comments, docstrings, commit messages, docs, log messages, API error messages, UI strings, test names and prompt templates MUST be in **ENGLISH**, even when the owner chats in another language.
+- Comments explain **why**, not what. Public functions and modules get English docstrings.
 
-**P0 - MVP (mandatory, must be demo-ready first)**
+---
 
-1. `GET /health` and `POST /ask` with Pydantic v2 validation.
-2. Corpus ingestion into `pgvector`.
-3. The strict 5-stage agent pipeline (Section 6).
-4. Working root `Dockerfile` (`docker build` + `docker run`).
-5. Minimal React UI: ask a question, render the Markdown answer and sources.
+# 3. Scope & Priority Gates
 
-**P1 - Enterprise differentiation**
+Work in priority order. Do not start a tier until the previous one is green (tests pass, Docker command works).
 
-1. Hybrid retrieval (pgvector + PostgreSQL FTS, Reciprocal Rank Fusion).
-2. Full auth: JWT + TOTP 2FA + RBAC (Admin / User).
-3. Public-by-default UX with contextual auth modal trigger.
-4. Redis rate limiting and throttling.
-5. Admin dashboard (requests, latency, tokens/cost, audit log, users).
-6. Smart structure-aware chunking.
+**P0 - Graded core**
 
-**P2 - "Wow" features (only if P0 and P1 are stable)**
+1. FastAPI app with `GET /health` and `POST /ask` (Pydantic v2).
+2. Corpus loading, structure-aware chunking, in-memory index.
+3. The strict 5-stage agent with native function-calling tools.
+4. Root `Dockerfile` that satisfies the exact graded command.
+5. Minimal React UI served by the same container.
+6. Evaluation harness covering the public questions.
 
-1. Glass-Box agent trace panel (live stage events).
-2. Interactive citations (hover-to-preview).
-3. Semantic cache (Redis).
-4. Multi-drug comparison matrix.
-5. Clinical widgets (e.g., eGFR calculator).
+**P1 - Quality & UX differentiators**
 
-Rules:
+1. Hybrid retrieval: dense (numpy cosine) + BM25 + Reciprocal Rank Fusion, glossary-based abbreviation expansion.
+2. Streaming glass-box trace (stage-by-stage events) and a trace panel in the UI.
+3. Interactive citations (hover/focus preview of the exact source passage).
+4. Multi-drug comparison matrix; eGFR calculator widget.
 
-- Optional or risky features (semantic cache, glass-box streaming, widgets) MUST sit behind a feature flag so they can be disabled without breaking P0/P1.
-- Never trade correctness, security, or medical safety for a P2 feature.
-- Prefer a smaller feature that is finished, tested, and demoable over a larger one that is half-built.
+**P2 - Optional polish (only when P0 and P1 are solid)**
+
+1. In-memory semantic cache and a generous in-process rate limit.
+2. Playwright smoke test; minimal GitLab CI.
+
+**Out of scope unless the owner explicitly asks** (they risk the graded path): PostgreSQL/pgvector, Redis, Docker Compose, JWT/2FA/RBAC, admin dashboards. If ever added, they MUST be optional, default OFF, and never required by `docker run`.
 
 ---
 
@@ -69,86 +80,62 @@ Rules:
 
 ```
 .
-├── CLAUDE.md
-├── Dockerfile                  # Root, multi-stage: frontend build -> backend runtime
-├── docker-compose.yml          # app + postgres(pgvector) + redis
-├── .dockerignore  .env.example  README.md
-├── pyproject.toml  alembic.ini
-├── data/corpus/                # FDA/DailyMed Markdown files + glossary
+├── .clinerules  .gitignore  .dockerignore  .env.example  README.md
+├── Dockerfile                      # Root, multi-stage: frontend build -> Python runtime
+├── pyproject.toml
+├── corpus/                         # Provided FDA/DailyMed + MedlinePlus Markdown + GLOSSARY.md
 ├── backend/
 │   ├── app/
-│   │   ├── main.py             # App factory + lifespan
-│   │   ├── core/               # config, security, logging, errors, deps
-│   │   ├── api/                # Routers only: health, ask, auth, admin
-│   │   ├── schemas/            # Pydantic v2 request/response/domain schemas
-│   │   ├── services/           # Business logic (no infrastructure imports)
-│   │   ├── repositories/       # protocols.py + SQLAlchemy implementations
-│   │   ├── models/             # SQLAlchemy ORM models
-│   │   ├── providers/          # LLM, embeddings, Redis adapters (ACL)
-│   │   ├── agent/              # pipeline.py, plan.py, retrieve.py, tools/, review.py, answer.py, events.py, prompts/
-│   │   └── ingestion/          # CLI: python -m app.ingestion
-│   ├── migrations/             # Alembic (async env)
-│   └── tests/                  # unit/, integration/, fakes/, factories.py, conftest.py
-├── frontend/src/               # components/, features/{chat,auth,admin}/, hooks/, lib/, stores/, types/
-└── e2e/                        # Playwright specs, page objects
+│   │   ├── main.py                 # App factory, lifespan, static mount
+│   │   ├── core/                   # config, logging, errors, constants
+│   │   ├── api/                    # Thin routers: health, ask
+│   │   ├── schemas/                # Pydantic v2 request/response/domain models
+│   │   ├── services/               # ask_service (orchestrates the pipeline)
+│   │   ├── providers/              # LLM + embedding adapters (OpenAI-compatible)
+│   │   ├── retrieval/              # loader, chunker, bm25, vector index, hybrid search
+│   │   └── agent/                  # pipeline.py, plan.py, tools/, review.py, answer.py, events.py, prompts/
+│   └── tests/                      # unit/, integration/, eval/, fakes/
+├── frontend/src/                   # components/, features/chat/, lib/, types/
+├── scripts/                        # probe_llm.py and other dev helpers
+├── e2e/                            # Optional Playwright smoke test
+└── docs/                           # requirements.md, PROGRESS.md, ARCHITECTURE.md, WALKTHROUGH.md, PRESENTATION.md
 ```
 
 ---
 
-# 5. Core Architecture
+# 5. Architecture Standards
 
-## 5.1 Strict layering (imports flow downward only)
+## 5.1 Layering
 
-`Router -> Service -> Repository / Provider -> ORM / HTTP / Redis`
+`Router -> Service -> Agent / Retrieval -> Providers`. Imports flow downward only.
 
-| Layer            | MAY import                                                           | MUST NOT import / do                                                                                                                                             |
-| ---------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `api/` (routers) | `fastapi`, `schemas`, `core.deps`, `services`                        | `sqlalchemy`, `httpx`, `redis`, `models`, `repositories`. Handlers are thin (<= 10 executable lines): parse input, call ONE service method, return the response. |
-| `services/`      | `schemas`, repository **Protocols**, provider **Protocols**, `agent` | `sqlalchemy`, `httpx`, `redis`, `fastapi.HTTPException`. Raise **domain exceptions** only.                                                                       |
-| `repositories/`  | `sqlalchemy`, `models`, `pgvector`                                   | The ONLY layer allowed to touch SQLAlchemy. Return domain/schema objects, never ORM instances.                                                                   |
-| `providers/`     | `httpx`, SDKs, `redis.asyncio`                                       | The ONLY layer allowed to touch external HTTP/SDKs. Return typed results, never raw `dict`.                                                                      |
-| `agent/`         | `services`/`providers` Protocols, `schemas`                          | Direct DB, HTTP, or Redis access.                                                                                                                                |
+- Routers are thin (<= 10 lines): validate, call ONE service method, return the response. No business logic.
+- Services and agent stages depend on **Protocols** (`LLMClient`, `EmbeddingProvider`, `VectorIndex`), never on concrete SDK classes. This is what makes strict LLM mocking trivial.
+- Only `providers/` imports the `openai`/`httpx` SDKs and returns typed results, never raw vendor dicts.
+- Dependency injection via FastAPI `Depends()` plus factories. No DI container library.
+- Orchestration is our own **typed sequential loop** (OpenAI SDK + Pydantic), not LangChain/LangGraph: the stage order is enforced by code, the control flow is explainable, the surface is small.
 
-## 5.2 Dependency injection
+## 5.2 Errors
 
-- Use FastAPI `Depends()` with factory functions in `core/deps.py`. Do NOT add a DI container library.
-- Services receive **Protocol-typed** dependencies via constructor injection (this is what makes strict LLM mocking trivial).
-- Settings come from a single `pydantic-settings` `Settings` object loaded once; never read `os.environ` elsewhere.
+- Domain exceptions (`AppError` hierarchy) are raised in services/agent code and mapped to HTTP in ONE central place. Services never raise `HTTPException`.
+- Single error JSON shape: `{"error": {"code", "message", "request_id"}}`. Never leak stack traces, prompts, keys or provider payloads.
+- Missing/invalid key, LLM timeout, rate limit from the proxy: return a clear structured error (502/503/504), never crash the process.
 
-## 5.3 Error handling
+## 5.3 Reject on sight
 
-- Services raise domain exceptions (`AppError` hierarchy: `NotFoundError`, `AuthenticationError`, `PermissionDeniedError`, `RateLimitedError`, `ProviderUnavailableError`, `ValidationFailedError`, ...).
-- Routers/exception handlers map them to HTTP status codes in ONE central place (`core/errors.py`).
-- Error responses use a single JSON shape (`{"error": {"code", "message", "request_id"}}`). NEVER leak stack traces, SQL, prompts, or provider payloads.
-- Use guard clauses and early returns; the happy path comes last. Throw for exceptional failures; return typed results for expected ones.
-- Use `HTTPException` only inside routers/dependencies, never in services.
-
-## 5.4 External providers (Anti-Corruption Layer + Bulkhead)
-
-- Each external dependency (LLM, embeddings, Redis) is wrapped behind a `Protocol` in `providers/` and returns typed Pydantic/dataclass results (`LLMResult`, `EmbeddingResult`, `ProviderError(retryable: bool, code: str)`).
-- Each HTTP provider owns its OWN `httpx.AsyncClient` with its OWN timeouts and connection limits. NEVER share one client across providers. Create clients in the FastAPI `lifespan` and close them on shutdown.
-- Every external call MUST have an explicit timeout. Retry ONLY retryable errors, with capped exponential backoff and jitter. Cap concurrency with `asyncio.Semaphore`.
-- Provider choice and model names are configuration, not code. Never hardcode a vendor in the pipeline.
-
-## 5.5 Reject on sight (anti-patterns)
-
-1. `AsyncSession` or any ORM model used inside a service or router.
-2. `raise HTTPException` inside a service.
-3. `httpx.AsyncClient()` created inside a function, or shared across providers.
-4. Returning/consuming vendor `dict` payloads (`resp["choices"][0]...`) outside `providers/`.
-5. Blocking calls (`time.sleep`, `requests`, sync DB drivers, CPU-heavy hashing) inside `async def` without a threadpool.
-6. `logger.info(f"...{user_id}...")` instead of structured logging with `extra={}`.
-7. Hardcoded secrets, model names, URLs, or thresholds.
-8. Free-text parsing of LLM output with regex instead of validated structured output.
+1. Blocking calls inside `async def` (`time.sleep`, `requests`, heavy CPU) without a threadpool.
+2. Hardcoded secrets, base URLs, model names, thresholds.
+3. Raw vendor `dict` handling outside `providers/`.
+4. Regex parsing of free-text LLM output instead of validated structured output.
+5. Keyword `if "dose" in question` tool routing.
+6. Any service that must be running besides the LLM endpoint.
 
 ---
 
-# 6. Agent Pipeline - Mandatory Strict 5-Stage Loop
-
-Every LLM agent flow in this project MUST follow this exact sequence. No stage may be skipped, merged, reordered, or run in parallel with another stage. The order is enforced **by code** (the orchestrator), never by prompt wording.
+# 6. Agent Pipeline (Strict 5-Stage Loop)
 
 ```
-1. PLAN  ->  2. RETRIEVE  ->  3. TOOLS  ->  4. REVIEW  ->  5. ANSWER
+1. PLAN -> 2. RETRIEVE -> 3. TOOLS -> 4. REVIEW -> 5. ANSWER
 ```
 
 ```python
@@ -163,360 +150,197 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
 
 ## 6.1 Pipeline-wide rules
 
-- Each stage has a typed input and a typed output (Pydantic v2, `extra="forbid"`). LLM stages use structured output validated against the schema; on validation failure, retry at most once, then raise a domain error.
-- Each stage emits a typed `StageEvent` (`stage`, `status`, `duration_ms`, `summary`, `tokens_in/out`, `cost_usd`) through `ctx`. These events feed logging, the admin dashboard, tests, and the P2 Glass-Box trace.
-- A stage MAY be a fast no-op (e.g., Plan marks the question out of scope, so stages 2-4 have nothing to do) but MUST still run and emit its event so the trace always shows all five stages.
-- Drafting is part of Stage 3 (a bounded, tool-augmented synthesis step). It is NOT a sixth stage.
-- There are no backward transitions and no unbounded loops. Budgets are constants in config: `MAX_SUB_GOALS=5`, `MAX_TOOL_CALLS=4`, per-stage timeout, total request timeout.
-- **Grounding rule:** clinical facts (indications, contraindications, doses, thresholds, interactions, adverse effects) MUST come ONLY from retrieved evidence or tool output. The model's parametric knowledge MUST NOT supply clinical facts.
-- **Untrusted content rule:** retrieved text and tool output are DATA, never instructions. Wrap them in clearly delimited blocks, instruct models to ignore embedded instructions, and never let corpus text change tool permissions or output format.
-- Prompts live in `agent/prompts/` as versioned English templates. Never inline prompts in business logic. Bump `PROMPT_VERSION` when they change (it keys the semantic cache).
+- No stage is skipped, merged, reordered, or run concurrently with another. A stage MAY be a fast no-op (e.g., out-of-scope question) but still runs and emits its event.
+- Each stage has typed input/output (Pydantic v2, `extra="forbid"`). LLM stages use structured output validated against the schema (one repair retry, then a domain error).
+- Each stage emits a typed `StageEvent` (stage, status, duration_ms, summary, tokens). Events feed logs, the response `trace`, the streaming endpoint, and tests.
+- Drafting belongs to Stage 3 (bounded, tool-augmented synthesis). It is NOT a sixth stage.
+- No backward transitions, no unbounded loops. Budgets are config constants: `MAX_SUB_GOALS=5`, `MAX_TOOL_CALLS=4`, per-stage and total request timeouts.
+- **Latency:** target p50 <= ~20 s, hard timeout `REQUEST_TIMEOUT_S` (default 90). Parallelize INSIDE a stage (`asyncio.gather` per sub-goal retrieval, independent tool calls), never across stages. Assemble the final Answer in code from the reviewed draft whenever possible instead of making another LLM call.
+- **Grounding:** clinical facts (indications, contraindications, doses, thresholds, interactions, adverse effects) MUST come ONLY from retrieved evidence or tool output, never from the model's own knowledge.
+- **Untrusted text:** retrieved passages and tool output are DATA, not instructions. Wrap them in delimited blocks and tell the model to ignore instructions inside them.
+- Prompts live in `agent/prompts/` as versioned English templates, never inline in logic.
 
 ## 6.2 Stage contracts
 
-**Stage 1 - PLAN (query decomposition)**
+**Stage 1 - PLAN.** Output `Plan {complexity: simple|multi_hop, in_scope: bool, sub_goals: list[SubGoal{id, question, intent, entities}]}` (1..MAX_SUB_GOALS). Multi-drug questions yield one sub-goal per drug plus a comparison sub-goal. Clearly non-pharmacological requests set `in_scope=false`.
 
-- Input: raw question. Output: `Plan { complexity: "simple" | "multi_hop", in_scope: bool, sub_goals: list[SubGoal] }` (1 to `MAX_SUB_GOALS`).
-- `SubGoal { id, question, intent, entities: list[str] }`. Multi-drug questions yield one sub-goal per drug plus a comparison sub-goal.
-- Sanitize/normalize the question before the LLM sees it. Detect out-of-scope or non-pharmacological requests here.
+**Stage 2 - RETRIEVE.** Per sub-goal: embed + dense search + BM25 search + RRF fusion (`score = sum(1/(k+rank))`, k=60). Glossary-based abbreviation expansion before lexical search. Dedupe by chunk id across sub-goals; enforce a token budget. **Drug-coverage rule:** if a sub-goal names drugs present in the corpus, guarantee at least one chunk from each named drug's files. Output `Evidence` with `source_file`, `section_path`, text, ranks and scores. Empty or weak evidence is a valid result and MUST propagate so the Answer says "insufficient evidence".
 
-**Stage 2 - RETRIEVE (hybrid search)**
+**Stage 3 - TOOLS (+ draft).** Typed tool registry (allowlist); the model chooses tools via native function calling. Every tool is local, deterministic, side-effect-free, typed (Pydantic args/result), has a timeout and returns provenance. Minimum set: `glossary_lookup(term)`, `label_section_lookup(drug, section)`, `threshold_check(drug, parameter, value)` (conservatively extracts numeric thresholds such as eGFR cut-offs from label text; returns `unknown` unless certain; always returns the supporting passage). Tool errors are returned to the model as structured results. Output `Draft {claims: [{text, evidence_ids, tool_result_ids}], markdown}`; every claim MUST reference evidence or a tool result.
 
-- Per sub-goal, run **vector search (pgvector, cosine) + PostgreSQL full-text search**, fused with **Reciprocal Rank Fusion** (`score = sum(1 / (k + rank))`, `k = 60`, configurable).
-- Deduplicate evidence across sub-goals by `chunk_id`; cap total evidence by token budget.
-- Output: `Evidence { chunks: list[Chunk{chunk_id, source_file, section_path, text, vector_rank, fts_rank, fused_score}] }`.
-- Zero or low-relevance evidence is a valid result. It MUST propagate forward so the Answer says "insufficient evidence" rather than guessing.
+**Stage 4 - REVIEW.** A SEPARATE reviewer call audits each claim against its cited evidence, plus deterministic code that checks every number, unit, dose and threshold in the draft appears verbatim in the cited text. Flags unsupported claims AND clinically ambiguous wording. Output `Review {verdict: pass|revise|insufficient_evidence, unsupported_claims, ambiguity_flags}`.
 
-**Stage 3 - TOOLS (dynamic local tool execution + drafting)**
-
-- The LLM chooses tools dynamically from a typed **tool registry** (allowlist). Do NOT hardcode `if "dose" in question` routing.
-- Every tool: Pydantic-typed arguments and result, pure/local, deterministic, side-effect-free, no network, per-call timeout, and returns provenance (`source`, `chunk_id` or `glossary_term`).
-- Initial tools: `glossary_lookup(term)`, `dosage_check(...)` (compares against values present in retrieved evidence; never invents reference ranges). P2: `egfr_calculator` (CKD-EPI 2021, pure function with known-vector unit tests).
-- Tool errors are returned to the model as structured results; they never crash the pipeline.
-- Output: `Draft { claims: list[Claim{text, evidence_ids, tool_result_ids}], markdown }`. Every claim MUST reference at least one evidence or tool result.
-
-**Stage 4 - REVIEW (critique & factual grounding audit)**
-
-- A SEPARATE reviewer call with its own prompt audits the draft claim-by-claim against the retrieved sources.
-- Checks: every claim is supported; every number, unit, dose, and threshold appears in the cited evidence (verbatim match is checked deterministically in code in addition to the LLM judgement); no overgeneralization; no clinically ambiguous wording; no contradiction between sources.
-- Output: `Review { verdict: "pass" | "revise" | "insufficient_evidence", unsupported_claims: [...], ambiguity_flags: [...] }`.
-
-**Stage 5 - ANSWER (final structured output)**
-
-- Applies the review: remove or soften unsupported claims; if `insufficient_evidence`, state that plainly.
-- Output is structured **Markdown** with: summary, details by sub-goal (tables for comparisons), inline citation markers (`[S1]`), a `Sources` list with **source file names** and sections, and the **mandatory medical disclaimer**.
-- The disclaimer is appended **deterministically by code** (constant `MEDICAL_DISCLAIMER`), never left to the LLM, and is present even in error-free fallbacks and cached answers.
-- Citations are validated in code: every `[Sx]` MUST map to a chunk that was actually retrieved. Drop or repair any citation that does not.
-- Response schema: `AskResponse { answer_markdown, citations[{id, source_file, section, chunk_id, excerpt}], disclaimer, trace_id, usage, cached }`.
+**Stage 5 - ANSWER.** Applies the review (remove/soften unsupported claims; explicit "insufficient evidence" when applicable). Structured Markdown with inline `[S1]` markers and a `Sources` list naming **source files** and sections. The constant `MEDICAL_DISCLAIMER` is appended by code, never by the LLM. Every `[Sx]` MUST map to a retrieved chunk (repair or drop invalid ones). The final `answer` string MUST contain every cited file name verbatim and the disclaimer, so it is self-sufficient even if a grader reads only `answer`.
 
 ---
 
-# 7. Data & Retrieval Standards
+# 7. Corpus, Chunking & Retrieval
 
-## 7.1 Ingestion (`python -m app.ingestion`)
-
-- MUST be **idempotent**: key on `(source_file, content_hash)`; upsert changed documents, skip unchanged, delete stale chunks.
-- Normalize text (Unicode, whitespace) while preserving Markdown structure.
-- **Smart chunking:** split on Markdown headings, carrying the full heading path (`Drug > Section > Subsection`) into each chunk. NEVER split tables (dosing tables) or contraindication/warning sections mid-way. Only when a single section exceeds the max token size, split on paragraph/row boundaries with small overlap.
-- Prefix embedded text with document title and heading path so each chunk is self-describing.
-- Embed in **batches** with bounded concurrency; stream files, do not load the whole corpus into memory.
-- Store per chunk: `id (UUID)`, `document_id`, `source_file`, `section_path`, `chunk_index`, `content`, `token_count`, `embedding vector(EMBEDDING_DIM)`, generated `tsvector`, timestamps.
-- The glossary goes into its own table (`term`, `definition`, normalized lookup key) for the `glossary_lookup` tool.
-- Record the embedding model and dimension; changing either requires a migration plus a full re-ingest. Bump `CORPUS_VERSION` after any re-ingest (it invalidates the semantic cache).
-
-## 7.2 PostgreSQL & pgvector rules
-
-- `TIMESTAMPTZ` for every timestamp; UUID for public IDs; `NOT NULL` by default; explicit `ON DELETE` on every FK; `CHECK` constraints for invariants; index every FK.
-- Vector index: **HNSW with `vector_cosine_ops`** (tune `m`, `ef_construction`; set `hnsw.ef_search` per query). Use the cosine operator consistently between index and query.
-- FTS: stored generated `tsvector` column + **GIN** index; query with `websearch_to_tsquery`. If recall tests show exact tokens (dosages, units, drug names) being lost to stemming, add a second `simple`-config tsvector.
-- Parameterized queries ONLY. Explicit column lists (no `SELECT *`). `LIMIT` on every potentially large result. Run `EXPLAIN ANALYZE` on retrieval queries before shipping.
-- Set `statement_timeout`. Use `CREATE INDEX CONCURRENTLY` for live tables. Migrations are versioned Alembic revisions that are tested (upgrade and downgrade); never edit applied migrations.
-- Never `TRUNCATE` or drop data from application code.
+- Corpus lives in `corpus/` and is COPIED INTO THE IMAGE (the container must not depend on host files). `GLOSSARY.md` is parsed into glossary entries, not chunked.
+- **Structure-aware chunking:** split on Markdown headings, carry the full heading path (`Drug > Section > Subsection`) into each chunk, NEVER split tables or Boxed Warning / Contraindications / Dosage sections mid-way. Oversized sections split only on paragraph or table-row boundaries (repeat the table header row). Prefix embedded text with drug name, source type and heading path. Chunk ids are stable (derived from file + heading path + index).
+- **Index:** numpy float32 matrix (L2-normalized) + cosine via dot product; own small BM25 implementation (tokenizer must keep numbers and units like `30`, `mL/min`, `INR`). Both unit-tested.
+- **Startup:** build the index in a background task. `/health` returns immediately; `/ask` awaits readiness (bounded) instead of failing. Cache embeddings on disk in a writable dir (`/tmp/...`) keyed by `sha256(text)` + embedding model, so restarts are fast. Embeddings are batched with bounded concurrency.
+- **Graceful degradation:** if embeddings are unavailable, run BM25-only and flag `retrieval_mode: "bm25_only"` in the response. Never crash.
+- Define a `VectorIndex` Protocol so the store is swappable (explainable in the presentation), but do not implement alternative stores.
 
 ---
 
 # 8. Backend Standards
 
-## 8.1 Python & typing
+- Python 3.11+, full type hints, `mypy --strict` and `ruff` pass. Max function ~30 lines; max file 400 LOC.
+- Pydantic v2 only (`model_validate`, `model_dump`, `ConfigDict`, `field_validator`); never v1 APIs. Inbound schemas use `extra="forbid"` except `AskRequest`, which MUST tolerate harmless extra fields from graders (`extra="ignore"`).
+- Settings via `pydantic-settings` with defaults for everything except the four `OPENAI_*` values; a missing key degrades gracefully (see 1.1).
+- Async everywhere for I/O. `lifespan` context manager for startup/shutdown (no `@app.on_event`). Explicit timeouts on every external call; retry only retryable errors with capped exponential backoff and jitter; cap concurrency with a semaphore.
+- JSON logs to stdout with a `request_id` ContextVar. NEVER log secrets, the key, the base URL, or full prompts at INFO.
+- Constants instead of magic numbers; one source of truth for prompts, schemas, thresholds.
 
-- Python 3.11+. Full type hints on every function signature; `mypy --strict` MUST pass. `ruff` (lint + format) MUST pass.
-- Prefer small pure functions; use classes for services, providers, and stages with injected dependencies. Max function length ~30 lines; max file length 400 LOC (400-599 yellow: plan a split; 600+ blocks merge).
-- Use `async def` for all I/O; offload CPU-bound work (password hashing, large parsing) with `run_in_threadpool` / `asyncio.to_thread`.
-- No mutable global state. No bare `except:`. Catch specific exceptions and re-raise as domain errors with context.
-- Named constants instead of magic numbers; constants live in the module top or `core/constants.py`.
+## LLM provider rules
 
-## 8.2 Pydantic v2
-
-- Use v2 APIs only: `model_validate`, `model_dump`, `ConfigDict`, `field_validator`, `model_validator`, `Annotated[..., Field(...)]`. NEVER use v1 APIs (`.dict()`, `parse_obj`, `@validator`, `class Config`).
-- All inbound schemas use `extra="forbid"` and explicit bounds (e.g., `question`: 1-2000 chars, stripped).
-- Separate schemas per purpose (`AskRequest`, `AskResponse`, `UserCreate`, `UserPublic`). Never return ORM-shaped objects or password/TOTP fields.
-- Settings via `pydantic-settings`; fail fast at startup on missing or invalid configuration.
-
-## 8.3 SQLAlchemy 2.0 async
-
-- Declarative models with `Mapped[...]` + `mapped_column(...)`. Queries via `select()` / `insert()` / `update()` only (no legacy `Query`).
-- `create_async_engine("postgresql+asyncpg://...", pool_pre_ping=True)`, `async_sessionmaker(expire_on_commit=False)`.
-- NO implicit lazy loading in async code: use `selectinload` / `joinedload` explicitly. Avoid N+1 queries; batch writes.
-- One `AsyncSession` per request via dependency; the service/unit-of-work owns commit/rollback boundaries. Use `SELECT ... FOR UPDATE` only when needed.
-- Vectors via the `pgvector` SQLAlchemy `Vector` type with the dimension from config.
-
-## 8.4 FastAPI
-
-- App factory plus `lifespan` context manager (no `@app.on_event`). Create and close DB engine, Redis pool, and provider clients there.
-- Every route declares `response_model`, status codes, and tags; OpenAPI must be accurate.
-- Middleware for: request ID (`ContextVar`), structured access logging, security headers, error mapping, and request size limits.
-- Structured **JSON logging to stdout** with `contextvars` (`request_id`, `user_id`, `trace_id`). Never log secrets, tokens, TOTP codes, password hashes, or raw user questions at INFO (log a hash/length instead).
-
-## 8.5 API contract
-
-- Bootcamp-contract endpoints live at the root exactly as specified: `GET /health` and `POST /ask`. Everything else is versioned under `/api/v1/...`.
-- `GET /health`: unauthenticated, fast, no LLM calls. Returns `{"status": "ok" | "degraded", "checks": {...}}`; reports dependency state but stays up when Postgres/Redis are unreachable.
-- `POST /ask`: validated `AskRequest`, returns `AskResponse` (Section 6.2). Auth enforcement is controlled by the `ASK_REQUIRES_AUTH` setting (default `true`; see Section 15 note). Anonymous callers, when allowed, get stricter per-IP rate limits.
-- Streaming endpoint for the Glass-Box trace (P2): stream `StageEvent`s as SSE-style chunks, then the final `AskResponse`. Keep the non-streaming `/ask` unchanged.
-- Auth endpoints (P1): `register`, `login`, `login/2fa`, `refresh`, `logout`, `2fa/enroll`, `2fa/verify`. Admin endpoints under `/api/v1/admin/*`.
+- `AsyncOpenAI` against `OPENAI_BASE_URL` (LiteLLM proxy). Model names come ONLY from config (`OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`); never assume a model is allowed. Per-stage model overrides MAY exist and default to `OPENAI_MODEL`.
+- Probe capabilities once and cache the result: prefer `response_format` json_schema; fall back to JSON mode + Pydantic validation. Prefer native tool calling; fall back to a structured "choose tool" step.
+- Track token usage per call; cost is optional (prices unknown).
 
 ---
 
-# 9. Security Standards
+# 9. API Contract
 
-## 9.1 Authentication (JWT + TOTP)
+- `GET /health` -> always 200: `{"status": "ok", "index": "building|ready|degraded", "llm_configured": bool}`.
+- `POST /ask` request: `{"question": "..."}` (1-2000 chars, stripped). Response (HTTP 200):
 
-- Passwords: **Argon2id** (`argon2-cffi`), run in a threadpool. Enforce a minimum length and a breached/weak-password check. Constant-time verification. Never store or log plaintext.
-- Tokens: **PyJWT**, algorithm pinned explicitly (reject `none` and algorithm confusion). Claims: `sub`, `role`, `iat`, `exp`, `jti`, `type`. **Access token TTL 15 min.**
-- Refresh tokens: opaque or JWT with `jti`, TTL days, **rotated on every use with reuse detection** (reuse revokes the whole family). Stored hashed server-side. Delivered in an `HttpOnly; Secure; SameSite=Strict` cookie; the refresh endpoint also requires a custom header (CSRF defense).
-- Access tokens live **in memory only** on the frontend. NEVER put tokens in `localStorage`/`sessionStorage`.
-- **TOTP (`pyotp`):** secrets generated per user, encrypted at rest (Fernet/AES-GCM, key from env), provisioning URI/QR for authenticator apps, +-1 time-step window, **replay prevention** (store last accepted counter in Redis), hashed single-use backup codes.
-- Login flow: password -> if 2FA is enrolled, issue a short-lived (5 min) `mfa_pending` token that is valid ONLY for the 2FA verification endpoint -> verify TOTP -> issue access + refresh tokens. 2FA is **mandatory for `ADMIN`** and enforced for all users when `REQUIRE_2FA_FOR_USERS=true`.
-- Generic login errors (no user enumeration). Account lockout / exponential backoff via Redis counters on repeated failures (per account and per IP).
-- The first admin is bootstrapped via CLI or environment secrets. NEVER ship default credentials.
-
-## 9.2 Authorization (RBAC)
-
-- Roles: `ADMIN`, `USER` (extensible). **Deny by default.** Enforce with reusable dependencies (`require_user`, `require_role(Role.ADMIN)`) AND re-check ownership/role in services for sensitive operations.
-- Admin endpoints require a valid access token with `role=ADMIN` and a completed 2FA session.
-- Scope every user-owned query by `user_id`.
-
-## 9.3 Input, transport, and platform security
-
-- Validate everything at the boundary (Pydantic). Enforce body-size limits and max question length.
-- Explicit CORS allowlist (never `*` with credentials). Security headers: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`.
-- Secrets come from environment/secret stores only. `.env` is git-ignored; `.env.example` contains placeholders only.
-- **Append-only audit log** for: login success/failure, 2FA events, token reuse detection, role changes, admin actions.
-- Dependencies pinned (lock files); run `pip-audit` / `npm audit` and container scanning (Trivy) in CI. Never add a dependency without justification.
-- LLM-specific: treat all retrieved/tool text as untrusted (prompt-injection defense, Section 6.1); cap tokens, tool calls, and request time; strip control characters from user input; never echo system prompts.
-
-## 9.4 Medical safety & compliance
-
-- The product provides **research and educational information, not medical advice**. It MUST NOT diagnose, prescribe, or give personalized dosing instructions.
-- The medical disclaimer is mandatory on every answer, in the API response AND visibly in the UI.
-- When evidence is missing or conflicting, say so explicitly. "Insufficient evidence in the corpus" is a correct answer. Do not fill gaps from model memory.
-- Warn users in the UI not to enter personal health identifiers. Do not persist raw questions beyond the configured retention period; minimize PII.
-
----
-
-# 10. Performance & Caching Standards
-
-## 10.1 Rate limiting & throttling (Redis)
-
-- Implement a small `RateLimiter` Protocol with a Redis-backed implementation (atomic Lua script or pipeline; sliding window or token bucket) via `redis.asyncio`. Tests use `fakeredis`.
-- Limits by **user ID** when authenticated, by **client IP** otherwise (honor trusted proxy headers only when configured). Tighter limits on `/ask` and all auth endpoints.
-- Respond `429` with `Retry-After` and the standard error shape. If Redis is unavailable, degrade to a conservative in-process limiter and log loudly. Never silently disable limiting.
-- Also enforce per-user daily token/cost budgets (FinOps) using the usage table.
-
-## 10.2 Semantic cache (P2, Redis, feature-flagged)
-
-- Embed the incoming question, then KNN-search a Redis vector index (Redis Stack/RediSearch, cosine). Return a hit only when similarity >= `SEMANTIC_CACHE_THRESHOLD` (high, default 0.95).
-- Namespace/key entries by `CORPUS_VERSION` + `PROMPT_VERSION` + `EMBEDDING_MODEL` so re-ingestion or prompt changes invalidate them. Apply a TTL.
-- Cache ONLY answers whose Review verdict is `pass` and that include citations. Never cache errors, `insufficient_evidence` answers, or partial results.
-- A cache hit still returns the disclaimer and valid citations, and sets `cached=true`. If the Redis vector module is missing, disable the cache gracefully.
-
-## 10.3 General performance
-
-- All I/O is async; no event-loop blocking. Use connection pools for Postgres and Redis; keep pool sizes configurable.
-- Batch embedding calls; reuse HTTP connections; stream long responses where it improves perceived latency.
-- Paginate every list endpoint (cursor or limit/offset with a hard max).
-- Measure before optimizing: record per-stage latency and tokens on every request.
-
----
-
-# 11. Observability & Admin Dashboard
-
-- Persist per-request records: `request_id`, user, per-stage durations, model, tokens in/out, `cost_usd`, cache hit, review verdict, status.
-- Admin dashboard (P1) exposes: request volume, latency (p50/p95, per stage), token usage and cost per model, cache hit rate, error rate, audit-log viewer, and user management (list, role change, disable). All of it is RBAC + 2FA protected, paginated, and read-only unless explicitly a management action.
-- Optional `/metrics` (Prometheus format), restricted to internal network or admin.
-
----
-
-# 12. Frontend Standards (React + Vite + Tailwind)
-
-## 12.1 Code standards
-
-- **TypeScript `strict: true`.** Never use `any` (use `unknown` + narrowing). Prefer `interface` for object shapes; use `type` for unions/intersections. Avoid enums (use `as const` maps).
-- Functional components and hooks only. One component per file, `PascalCase` files for components, `camelCase` for utilities, `kebab-case` for directories. Props interfaces named `XxxProps`.
-- Server state: TanStack Query. Client/UI state: Zustand (or React context for trivial state). No Redux.
-- **Validate API responses at runtime** (Zod) at the API-client boundary and infer types from schemas (`z.infer`). Never trust the network.
-- All user-visible strings are English and live in a constants/i18n-ready module, not scattered through JSX.
-- Keep components small (<= ~150 lines); extract hooks for logic and keep presentational components pure.
-
-## 12.2 Tailwind
-
-- Utility classes only; no custom CSS beyond design tokens in `tailwind.config`. Mobile-first and responsive. Consistent class ordering (prettier-plugin-tailwindcss).
-- Accessibility is required: semantic HTML, labels, focus-visible styles, sufficient contrast, keyboard navigation, `aria-live` for streaming/answer regions.
-
-## 12.3 UX architecture
-
-- **Public by default:** landing, glossary browsing, and project presentation need no login.
-- **Contextual auth modal:** when an unauthenticated user triggers a protected action (e.g., sends a chat message), intercept it, store the pending action, open the auth modal, and **replay the pending action automatically** after successful login + 2FA. Modal requirements: focus trap, `Escape` to close, `aria-modal`, returns focus on close.
-- Auth state: access token in memory; silently refresh via the cookie on page load and on 401 (single-flight refresh to avoid stampedes).
-- Role-aware routing: `/admin/*` is code-split (lazy) and guarded; non-admins never receive admin bundles' data.
-- Render answers with `react-markdown` + `rehype-sanitize`. **NEVER use `dangerouslySetInnerHTML`.** Always render the disclaimer and the sources list.
-- Loading, empty, error, and rate-limited (429 + countdown) states are mandatory for every async view. Use error boundaries.
-- P2: Glass-Box trace side panel (animated stage progress from streamed events), hover-to-preview citation popovers (use `excerpt` from the response), comparison matrix rendering from structured tables, clinical widgets (e.g., eGFR) as isolated, tested components.
-- Every interactive element used by E2E tests carries a stable `data-testid`.
-- Performance: route-level code splitting, memoize only when measured, optimized assets, no unnecessary global re-renders.
-
----
-
-# 13. Testing Strategy
-
-## 13.1 Unit & integration tests (`pytest` + `pytest-asyncio`)
-
-```toml
-# pyproject.toml (excerpt)
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-addopts = "--strict-markers --disable-socket --allow-unix-socket --allow-hosts=127.0.0.1,::1 -ra"
-markers = [
-  "unit: fast, isolated, no I/O",
-  "integration: real Postgres/Redis on localhost",
-  "e2e: Playwright journeys",
-  "llm_live: calls a real LLM; excluded from CI by default",
-]
+```json
+{
+  "answer": "Markdown with inline [S1] markers, a Sources section naming files, and the disclaimer",
+  "sources": ["dailymed-warfarin.md"],
+  "citations": [
+    {
+      "id": "S1",
+      "source_file": "dailymed-warfarin.md",
+      "section": "Contraindications",
+      "chunk_id": "...",
+      "excerpt": "..."
+    }
+  ],
+  "disclaimer": "...",
+  "plan": { "complexity": "simple", "sub_goals": [] },
+  "tool_calls": [
+    { "tool": "label_section_lookup", "arguments": {}, "status": "ok" }
+  ],
+  "review": {
+    "verdict": "pass",
+    "unsupported_claims": [],
+    "ambiguity_flags": []
+  },
+  "retrieval_mode": "hybrid",
+  "trace_id": "...",
+  "usage": { "tokens_in": 0, "tokens_out": 0 },
+  "latency_ms": 0
+}
 ```
 
-- **Strict LLM mocking (hard rule):** unit and integration tests MUST NEVER call a real LLM or embedding API. Enforce this three ways: (1) sockets to non-localhost are blocked by `pytest-socket`, (2) an `autouse` fixture replaces the LLM/embedding providers with deterministic scripted fakes (`FakeLLMClient`, `FakeEmbeddingClient`) through DI overrides, (3) the fakes raise loudly on any unscripted call so a missed mock fails the test instead of silently passing.
-- Fakes are scripted **per stage** (plan JSON, draft, review verdict) so tests are instant, free, and 100% reproducible.
-- Mock ONLY external boundaries (LLM, embeddings, outbound HTTP). Never mock your own services or SQLAlchemy internals. Repository/retrieval tests run against a real PostgreSQL + pgvector instance (service container or `testcontainers`) and real Redis (or `fakeredis` for unit scope).
-- Use **factory functions** for test data (no stale static fixtures). Each test is independent and order-agnostic. Test names describe behavior (`test_review_rejects_dose_not_in_evidence`).
-- Required coverage: overall >= 80%; **100% on security- and safety-critical paths:** JWT validation, refresh rotation/reuse detection, TOTP (including replay), RBAC dependencies, rate limiter, disclaimer injection, citation validation, grounding check.
-- Must-have test areas:
-  - Pydantic schema validation (valid, invalid, boundary lengths, `extra="forbid"`).
-  - Chunking (never splits tables/contraindication sections; heading path preserved).
-  - Hybrid retrieval (RRF math; exact-term recall for dosages/acronyms; dedupe).
-  - Pipeline order and completeness via emitted `StageEvent`s; no stage skipped.
-  - Tools (typed IO, timeouts, error-as-result, `egfr_calculator` known vectors).
-  - Review/Answer (unsupported claim removed; `insufficient_evidence` path; every `[Sx]` maps to retrieved chunks).
-  - Security (401 expired/invalid token, 403 wrong role, 429 rate limit, TOTP replay rejected, prompt-injection fixtures in corpus text are ignored).
-- **Assert behavior and structure, not frozen text:** status codes, schema validity, presence of mandatory sources/keywords/disclaimer, stage order, citation integrity.
-- Optional **eval set** (`llm_live`): a small golden set of simple and multi-hop questions with expected source files and must-include facts, run manually or nightly with a real model. Never in the default CI path.
-
-## 13.2 End-to-end tests (Playwright)
-
-- E2E runs against the full stack (`docker compose`) with the backend in **fake-LLM mode** (`LLM_PROVIDER=fake`) for determinism.
-- Core journey: public landing -> click chat -> auth modal opens -> log in with password -> enter TOTP (generated in-test from a seeded secret with `otplib`) -> modal closes and the pending message is sent -> submit a complex multi-hop question -> assert trace panel shows all 5 stages (P2), citations render with source file names, and the **medical disclaimer is visible**.
-- Additional journeys: wrong TOTP code, rate-limit (429) UX, non-admin blocked from `/admin`, admin dashboard loads.
-- Use `data-testid` / role-based locators only. No `waitForTimeout` (use auto-waiting and web-first assertions). Page-object pattern. Enable traces/screenshots on failure. Specs are independent and idempotent.
+- Validation failures -> 422 with the standard error shape. LLM failures -> 502/503/504 with the standard error shape.
+- Streaming (P1): `POST /ask/stream` emits `StageEvent`s (SSE format over a streamed POST response) and then the final response. `/ask` stays unchanged and is the graded endpoint.
+- The frontend is served from `/` (StaticFiles with SPA fallback); API routes take precedence.
 
 ---
 
-# 14. Docker & Deployment
+# 10. Safety & Security
 
-## 14.1 Root `Dockerfile` (multi-stage, self-contained)
-
-- Stage 1 `frontend-build` (pinned `node:<ver>-alpine`): `npm ci` -> `npm run build`.
-- Stage 2 `backend-build` (pinned `python:3.11-slim`): build wheels / virtualenv from the lock file (copy dependency manifests first for layer caching).
-- Stage 3 `runtime` (pinned `python:3.11-slim`): copy only the venv, backend code, and `frontend/dist` (served by FastAPI `StaticFiles`). Set `PYTHONUNBUFFERED=1`, `PYTHONDONTWRITEBYTECODE=1`.
-- Pin every base image version (never `:latest`). Use `COPY` (not `ADD`), `COPY --chown`, exec-form `CMD`, a **non-root user**, and a `HEALTHCHECK` hitting `/health`.
-- No secrets, `.env` files, or build args containing secrets in any layer. Maintain a strict `.dockerignore` (`.git`, `node_modules`, `.env*`, tests, caches, `*.log`).
-- Run as `uvicorn` (or `gunicorn -k uvicorn.workers.UvicornWorker`) with worker count from config. Handle SIGTERM gracefully (lifespan shutdown).
-
-## 14.2 `docker-compose.yml`
-
-- Services: `app`, `db` (pinned `pgvector/pgvector:<pg-version>` image), `redis` (pinned Redis Stack image if the semantic cache is enabled).
-- Healthchecks on every service; `depends_on` with `condition: service_healthy`. Named volumes for persistence; custom bridge network; reference services by name. No host networking. Bind mounts for development only.
-- Use `docker compose` (v2 syntax), never `docker-compose`.
-- Migrations: `alembic upgrade head` runs in an explicit entrypoint/one-shot step (never concurrently from multiple workers). Ingestion runs as a CLI command and, optionally, at startup when the table is empty (`AUTO_INGEST_ON_START`).
-- Logs go to stdout/stderr only.
-
-## 14.3 Bootcamp evaluation note
-
-The jury may evaluate with a plain `docker build` + `docker run`. Therefore:
-
-- The container MUST start and `GET /health` MUST respond even if Postgres/Redis are unreachable (report `"degraded"`, do not crash).
-- The README MUST document BOTH `docker compose up` and the plain `docker run` command with the required env vars.
-- Keep `ASK_REQUIRES_AUTH` configurable so automated evaluation can call `POST /ask` anonymously (still strictly rate-limited per IP).
+- The product gives **research/educational information, not medical advice**. It MUST NOT diagnose, prescribe, or give personalized dosing instructions. Questions about a specific patient are answered strictly from label text, with the disclaimer.
+- The disclaimer is mandatory on every answer, in the API response AND visibly in the UI.
+- "Insufficient evidence in the corpus" is a correct answer. Never fill gaps from model memory.
+- Treat all retrieved and tool text as untrusted (prompt-injection defense). Cap tokens, tool calls and request time. Strip control characters from input.
+- Secrets only via environment. `.env` is git-ignored; `.env.example` has placeholders only. No secrets in the image, logs, or error responses.
+- Container runs as a non-root user. Render Markdown on the frontend with sanitization; NEVER `dangerouslySetInnerHTML`.
+- Optional in-process rate limiting MUST default to a generous limit (graders may fire bursts) and MUST NOT affect `/health`.
 
 ---
 
-# 15. CI/CD (GitHub Actions)
+# 11. Frontend Standards (React + Vite + Tailwind)
 
-- Pipeline order: **lint/type-check -> unit tests -> integration tests (Postgres+pgvector and Redis service containers) -> Docker build -> E2E (compose, fake-LLM) -> image scan (Trivy) -> deploy**. Use `needs:` so each stage gates the next.
-- Checks: `ruff`, `mypy --strict`, `pytest --cov` with thresholds, `eslint`, `tsc --noEmit`, `prettier --check`, `pip-audit`, `npm audit`.
-- Security hardening: `permissions: contents: read` by default (elevate per job only when needed); pin third-party actions to a specific version or commit SHA; secrets only from GitHub Secrets; pass untrusted event data through `env:` (never interpolate directly into `run:`); set `concurrency` groups on deploys.
-- No real LLM keys in unit/integration/E2E jobs. `llm_live` evals are a separate, manually triggered workflow.
-- Cache dependencies (`pip`, `npm`, Docker layers). Name jobs and steps descriptively.
-
----
-
-# 16. Clean Code & Git Standards
-
-- Meaningful names that reveal intent; avoid cryptic abbreviations. Python: `snake_case` (functions/variables), `PascalCase` (classes), `UPPER_SNAKE_CASE` (constants). TypeScript: `camelCase`, `PascalCase`, `UPPER_SNAKE_CASE`.
-- Single Responsibility: one function does one thing; if it needs a "what" comment, split it. Extract nested conditionals into well-named functions.
-- DRY with restraint: extract after the third repetition; keep a single source of truth for constants, schemas, and prompts.
-- No dead code, commented-out code, or placeholder stubs in committed code. Open work is tracked as `TODO(<issue-id>): ...` and never left in P0 paths.
-- Match the existing style of the file you edit; do not reformat or refactor beyond the task's scope.
-- Conventional Commits (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`), small focused commits, PRs <= ~400 changed lines, branch names like `feat/hybrid-retrieval`.
-- Pre-commit hooks: `ruff`, `mypy`, `prettier`, `eslint`, secret scanning.
-- Write the failing test first when fixing a bug.
+- TypeScript `strict`; no `any`. Functional components and hooks. Validate API responses with Zod and infer types.
+- Chat UI: textarea + submit (Enter sends, Shift+Enter newline), loading / error / empty states, example questions (the public evaluation questions), rendered Markdown (`react-markdown` + `remark-gfm` + `rehype-sanitize`), Sources list with file names, ALWAYS-visible disclaimer, review flags shown to the user.
+- P1: trace panel (5 stages with status/duration/details; respects `prefers-reduced-motion`), interactive citation chips (hover, focus and tap preview using `excerpt`), comparison grid, eGFR widget (educational estimate only).
+- Accessible: semantic HTML, labels, focus management, `aria-live` for answer regions. Stable `data-testid` on interactive elements. Tailwind utilities only; design tokens in `tailwind.config`.
+- Built in the Docker image (`npm ci && npm run build`); the same-origin deployment needs no CORS configuration. Dev uses the Vite proxy.
 
 ---
 
-# 17. AI Assistant Working Agreement
+# 12. Testing Strategy
 
-- **Plan first** for any non-trivial task: state a short plan, then implement. Prefer small, reviewable changes, one concern at a time.
-- Verify before asserting. Check the existing code, config, and docs instead of guessing. If you do not know something, say so.
-- Implement completely: working code, imports included, no stubs or "rest of the code here" placeholders.
-- Do not invent changes beyond what was requested. Preserve unrelated code and existing structure. Do not remove functionality without being asked.
-- Reuse existing libraries and patterns. Adding a dependency requires a one-line justification.
-- After changes, run the relevant checks (`ruff`, `mypy`, `pytest`, `tsc`, `eslint`) and fix what you broke. Do not mark work done while checks fail.
-- Never weaken security, validation, the 5-stage pipeline, the disclaimer, or test mocking rules to make something pass.
-- When a requirement conflicts with this file, surface the conflict instead of silently picking a side.
-
----
-
-# 18. Configuration Reference (`.env.example`)
-
-| Variable                                                                       | Purpose                                                   |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `APP_ENV`                                                                      | `dev` / `test` / `prod`                                   |
-| `DATABASE_URL`                                                                 | `postgresql+asyncpg://...`                                |
-| `REDIS_URL`                                                                    | Redis connection string                                   |
-| `JWT_SECRET` / `JWT_ALGORITHM`                                                 | Token signing (algorithm pinned)                          |
-| `ACCESS_TOKEN_TTL_MIN` / `REFRESH_TOKEN_TTL_DAYS`                              | Token lifetimes (default 15 min / 7 days)                 |
-| `TOTP_ENCRYPTION_KEY`                                                          | Encrypts TOTP secrets at rest                             |
-| `REQUIRE_2FA_FOR_USERS`                                                        | Enforce 2FA for all users (admin always enforced)         |
-| `ASK_REQUIRES_AUTH`                                                            | Require auth on `POST /ask` (default `true`)              |
-| `LLM_PROVIDER` / `LLM_API_KEY` / `LLM_MODEL_*`                                 | Provider and per-stage model names (`fake` for tests/E2E) |
-| `EMBEDDING_MODEL` / `EMBEDDING_DIM`                                            | Embedding model and vector dimension                      |
-| `CORPUS_DIR` / `CORPUS_VERSION` / `AUTO_INGEST_ON_START`                       | Corpus location, version, startup ingestion               |
-| `PROMPT_VERSION`                                                               | Versioned prompt set (cache key component)                |
-| `MAX_SUB_GOALS` / `MAX_TOOL_CALLS` / `REQUEST_TIMEOUT_S`                       | Pipeline budgets                                          |
-| `RATE_LIMIT_*`                                                                 | Per-endpoint, per-IP/user limits                          |
-| `SEMANTIC_CACHE_ENABLED` / `SEMANTIC_CACHE_THRESHOLD` / `SEMANTIC_CACHE_TTL_S` | Semantic cache controls                                   |
-| `CORS_ORIGINS`                                                                 | Explicit allowlist                                        |
+- `pytest` + `pytest-asyncio` (`asyncio_mode = "auto"`), `pytest-socket` to block real network in unit tests.
+- **Strict LLM mocking:** unit and integration tests NEVER call a real LLM/embedding API. An `autouse` fixture installs `FakeLLMClient` / `FakeEmbeddingProvider` (scriptable per stage, deterministic) via dependency overrides; fakes RAISE on any unscripted call. `LLM_PROVIDER=fake` enables the same fakes at runtime for E2E.
+- Mock ONLY external boundaries. Use factory functions for test data; tests are independent.
+- Must-have tests: chunker invariants (no table split, heading path preserved), BM25 and RRF math, drug-coverage rule, exact-term recall (numbers/units found lexically), tool typing/timeouts/errors, claim-reference validation, review deterministic checks, stage order via events, disclaimer always present, citation integrity, `/health` never fails, `/ask` validation, startup without key.
+- Assert behavior and structure (status codes, schema, mandatory sources/disclaimer, stage order), not frozen text.
+- **Eval harness** (`backend/tests/eval/`, marker `llm_live`, never in default runs): the public questions plus extra questions verified against the corpus. Scores: expected files cited, file names present in `answer`, disclaimer present, review flags, latency. Run against the real proxy before every submission candidate.
+- Frontend: Vitest + Testing Library (safe Markdown, disclaimer shown, error states). Optional Playwright smoke journey in fake-LLM mode.
+- Coverage target >= 80% for retrieval/agent/core.
 
 ---
 
-# 19. Definition of Done
+# 13. Docker
 
-A change is done only when ALL apply:
+- Root `Dockerfile`, multi-stage: (1) `frontend-build` on a pinned Node alpine image (`npm ci`, `npm run build`); (2) `backend-build` on a pinned `python:3.11-slim` (install pinned dependencies into a venv); (3) `runtime` on a pinned `python:3.11-slim` with only the venv, backend code, `frontend/dist` and `corpus/`.
+- Non-root user, `HEALTHCHECK` on `/health`, exec-form `CMD` running uvicorn on `0.0.0.0:8000`, `PYTHONUNBUFFERED=1`. A writable cache dir for the non-root user.
+- Pin every base image; no `:latest`. `.dockerignore` excludes `.git`, `.env*`, `node_modules`, `.venv`, tests, docs, caches, the PDF. No secrets in any layer; configuration only at runtime via `--env-file`.
+- MUST be verified with the EXACT graded command, with a second `.env` containing different values, with an invalid key, and with quoted values in the env file.
 
-- [ ] All code, comments, docs, and strings are in English.
-- [ ] The 5-stage order is intact and every stage emits its event.
-- [ ] Answers are grounded, citations validated, and the disclaimer is present.
-- [ ] Types, lint, and format pass (`mypy --strict`, `ruff`, `tsc`, `eslint`, `prettier`).
-- [ ] Tests added or updated; unit tests use zero real LLM calls; coverage thresholds met.
-- [ ] No secrets, PII, or tokens in code, logs, or images.
-- [ ] Layer boundaries respected; no anti-patterns from Section 5.5.
-- [ ] `docker build` succeeds and the container starts; `/health` responds.
-- [ ] README/`.env.example` updated if behavior or configuration changed.
+---
+
+# 14. Clean Code & Git
+
+- Meaningful names; Python `snake_case`/`PascalCase`/`UPPER_SNAKE_CASE`, TypeScript `camelCase`/`PascalCase`. Single responsibility; DRY after the third repetition.
+- No commented-out code, dead code or placeholder stubs. Open work is `TODO(<id>)` and never in P0 paths.
+- Match the existing style; do not refactor beyond the task.
+- Conventional Commits. Commit and **push to the remote often**: the last pushed commit before the deadline is graded. `main` MUST always build and pass the graded command.
+- Pre-commit/CI MAY run `ruff`, `mypy`, `eslint`, `tsc`, `prettier`.
+
+---
+
+# 15. AI Assistant Working Agreement
+
+- Plan first for non-trivial tasks (short plan, then implement); small, reviewable steps.
+- Verify before asserting: inspect code, config and the corpus instead of guessing. If unsure, say so.
+- Implement completely: imports included, no stubs, no "rest of code here".
+- Do not invent changes beyond the request; preserve unrelated code. Reuse existing patterns; justify any new dependency in one line.
+- Never print secrets (key, base URL). Never paste `.env` contents into chat or logs.
+- Never weaken the 5-stage pipeline, grounding, the disclaimer, the self-contained container, or the test-mocking rules to make something pass.
+- When a request conflicts with this file or the PDF, surface the conflict instead of picking silently.
+
+## Session Protocol
+
+- Start of every task: read `.clinerules`, `docs/requirements.md`, `docs/PROGRESS.md`.
+- End of every task: run the relevant checks (`ruff`, `mypy`, `pytest`, `tsc`, `eslint`, `vitest` as applicable), update `docs/PROGRESS.md`, and summarize in at most 10 lines.
+
+---
+
+# 16. Configuration Reference (`.env.example`, placeholders only)
+
+| Variable                                      | Default                    | Purpose                                        |
+| --------------------------------------------- | -------------------------- | ---------------------------------------------- |
+| `OPENAI_API_KEY`                              | - (required for LLM calls) | LiteLLM proxy key                              |
+| `OPENAI_BASE_URL`                             | -                          | LiteLLM proxy base URL                         |
+| `OPENAI_MODEL`                                | -                          | Chat model (must be one of the allowed models) |
+| `OPENAI_EMBEDDING_MODEL`                      | `text-embedding-3-small`   | Embedding model                                |
+| `LLM_PROVIDER`                                | `openai`                   | `fake` for tests/E2E only                      |
+| `PLAN_MODEL` / `REVIEW_MODEL` / `DRAFT_MODEL` | `OPENAI_MODEL`             | Optional per-stage overrides                   |
+| `CORPUS_DIR`                                  | `/app/corpus`              | Corpus location inside the container           |
+| `CACHE_DIR`                                   | `/tmp/synapse-cache`       | Embedding cache                                |
+| `MAX_SUB_GOALS` / `MAX_TOOL_CALLS`            | `5` / `4`                  | Pipeline budgets                               |
+| `REQUEST_TIMEOUT_S`                           | `90`                       | Hard request timeout                           |
+| `RATE_LIMIT_PER_MIN`                          | `0` (off) or generous      | Optional in-process limit                      |
+| `SEMANTIC_CACHE_ENABLED`                      | `false`                    | Optional P2 cache                              |
+| `LOG_LEVEL`                                   | `INFO`                     | Logging level                                  |
+
+---
+
+# 17. Definition of Done
+
+- [ ] All code, comments, docs and strings are in English.
+- [ ] The exact graded Docker command works with a different `.env`; `/health` and `POST /ask` return 200.
+- [ ] The 5-stage order is intact and every stage emits its event; tools are chosen by the agent.
+- [ ] Answers are grounded; every citation maps to a retrieved chunk; file names and the disclaimer are in `answer`.
+- [ ] Public evaluation questions pass the eval harness.
+- [ ] Types, lint and format pass; tests added; unit tests make zero real LLM calls.
+- [ ] No secrets, PDF or `.env` in the repo, image or logs.
+- [ ] `docs/PROGRESS.md` updated; commit pushed.
