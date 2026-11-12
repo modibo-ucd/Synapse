@@ -19,9 +19,13 @@ from app.core.constants import (
     CHARS_PER_TOKEN,
     CHUNK_MAX_TOKENS,
     CHUNK_OVERLAP_TOKENS,
+    INDEX_READY_TIMEOUT_S,
     MAX_SUB_GOALS,
     MAX_TOOL_CALLS,
     REQUEST_TIMEOUT_S,
+    RETRIEVAL_TOKEN_BUDGET,
+    RETRIEVAL_TOP_K,
+    RRF_K,
 )
 
 
@@ -54,6 +58,10 @@ class Settings(BaseSettings):
     chunk_max_tokens: int = CHUNK_MAX_TOKENS
     chunk_overlap_tokens: int = CHUNK_OVERLAP_TOKENS
     chars_per_token: float = CHARS_PER_TOKEN
+    rrf_k: int = RRF_K
+    retrieval_top_k: int = RETRIEVAL_TOP_K
+    retrieval_token_budget: int = RETRIEVAL_TOKEN_BUDGET
+    index_ready_timeout_s: float = INDEX_READY_TIMEOUT_S
     rate_limit_per_min: int = 0
     semantic_cache_enabled: bool = False
     log_level: str = "INFO"

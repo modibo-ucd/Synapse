@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–3 completed 2026-11-12. Next: Task 4 (Index + hybrid retrieval).
+Tasks 0–4 completed 2026-11-12. Next: Task 5 (Plan + Tools).
 
 ## Checklist
 
@@ -10,7 +10,7 @@ Tasks 0–3 completed 2026-11-12. Next: Task 4 (Index + hybrid retrieval).
 - [x] 1 Scaffold — FastAPI app skeleton, pyproject.toml, test setup
 - [x] 2 Providers — LLM + embedding adapters (OpenAI-compatible)
 - [x] 3 Corpus + chunking — loader, structure-aware chunker
-- [ ] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
+- [x] 4 Index + hybrid retrieval — numpy vector index + BM25 + RRF
 - [ ] 5 Plan + Tools — planner + typed local tool registry
 - [ ] 6 Review + Answer + orchestrator — critic, answerer, 5-stage loop
 - [ ] 7 /ask API — FastAPI routes (/health, /ask) + schemas
@@ -80,6 +80,28 @@ Tasks 0–3 completed 2026-11-12. Next: Task 4 (Index + hybrid retrieval).
     `ceil(len/chars_per_token)` (default 4.0); 800-token chunks, 60-token overlap,
     all Settings-configurable. Chunk id = `sha256(file|path|index)[:16]`; 460 chunks
     total. CLI: `python -m app.retrieval.inspect_chunks [file]`.
+13. **Retrieval (Task 4)** — own `BM25Index` (tokenizer keeps `30`/`mL/min`/`1.73`/
+    `INR`), `NumpyVectorIndex` behind a `VectorIndex` Protocol (L2-normalized float32,
+    cosine dot, `argpartition` top-k), `HybridSearcher` (RRF k=60 + glossary
+    abbreviation expansion, dense/bm25 ranks + fused score on every hit),
+    `Retriever.run(plan)` (per-goal `asyncio.gather`, dedupe by chunk id, token
+    budget 4000, drug-coverage rule) and `IndexManager` (background build, readiness
+    `building|ready|degraded`, disk embedding cache keyed `sha256(text)`+model,
+    BM25-only fallback). Settings: `rrf_k`, `retrieval_top_k`, `retrieval_token_budget`,
+    `index_ready_timeout_s`. CLI: `python -m app.retrieval.debug "question"`.
+
+### Task 4 retrieval quality (real embeddings, text-embedding-3-small)
+
+| # | Question | Top results (file > section) |
+|---|----------|------------------------------|
+| 1 | Warfarin contraindications | `dailymed-warfarin.md > 4 CONTRAINDICATIONS` (d1 b2) ✓ |
+| 2 | Warfarin vs apixaban contraindications | `dailymed-apixaban.md > 4 CONTRAINDICATIONS` (d9 b3) + `dailymed-warfarin.md > 4 CONTRAINDICATIONS` (b1) ✓ |
+| 3 | Warfarin + sertraline bleeding | warfarin `WARNING: BLEEDING RISK` + `5.1 Hemorrhage`; sertraline `5.3 Increased Risk of Bleeding` + `7.1` (warfarin INR monitoring) ✓ |
+| 4 | Metformin eGFR 25 threshold | `dailymed-metformin.md > 2.3 Recommendations for Use in Renal Impairment` (d1 b2), `4 CONTRAINDICATIONS` (eGFR below 30), `5.1 Lactic Acidosis` ✓ |
+
+All four expected source files and the clinically relevant sections appear in the
+top fused results; dense embeddings dominate for these semantic questions, with
+BM25 contributing exact-term recall.
 
 ## Known issues
 

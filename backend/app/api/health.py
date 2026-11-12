@@ -11,8 +11,10 @@ router = APIRouter(tags=["health"])
 async def health(request: Request) -> dict[str, object]:
     """Report liveness; never fails, even while indexing or with no LLM key."""
     app = request.app
+    manager = getattr(app.state, "index_manager", None)
+    index_status = manager.status if manager is not None else app.state.index_status
     return {
         "status": "ok",
-        "index": app.state.index_status,
+        "index": index_status,
         "llm_configured": app.state.settings.llm_configured,
     }

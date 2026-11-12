@@ -13,15 +13,23 @@ from app.api.health import router as health_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, request_id_var
+from app.providers import openai as openai_providers
+from app.retrieval.index_manager import IndexManager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Configure logging and mark the index as building (Task 3/4 builds it)."""
+    """Configure logging and start the in-memory index build in the background."""
     settings: Settings = app.state.settings
     configure_logging(settings.log_level)
+    index_manager = IndexManager(settings, openai_providers.build_embedding_provider(settings))
+    index_manager.start()
+    app.state.index_manager = index_manager
     app.state.index_status = "building"
-    yield
+    try:
+        yield
+    finally:
+        await index_manager.shutdown()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

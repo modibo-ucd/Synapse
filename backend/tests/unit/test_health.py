@@ -10,28 +10,39 @@ from app.main import create_app
 OPENAI_NAMES = ("OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL")
 
 
-def test_health_without_llm_config(monkeypatch) -> None:
+def test_health_without_llm_config(monkeypatch, tmp_path) -> None:
     for name in OPENAI_NAMES:
         monkeypatch.delenv(name, raising=False)
-    app = create_app(Settings(_env_file=None))
+    settings = Settings(
+        _env_file=None,
+        corpus_dir=str(tmp_path / "corpus"),
+        cache_dir=str(tmp_path / "cache"),
+    )
+    app = create_app(settings)
     with TestClient(app) as client:
         resp = client.get("/health")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert body["index"] == "building"
+    assert body["index"] in {"building", "ready", "degraded"}
     assert body["llm_configured"] is False
 
 
-def test_health_with_llm_config(monkeypatch) -> None:
+def test_health_with_llm_config(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "key")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://example.com")
     monkeypatch.setenv("OPENAI_MODEL", "m")
-    app = create_app(Settings(_env_file=None))
+    settings = Settings(
+        _env_file=None,
+        corpus_dir=str(tmp_path / "corpus"),
+        cache_dir=str(tmp_path / "cache"),
+    )
+    app = create_app(settings)
     with TestClient(app) as client:
         resp = client.get("/health")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert body["index"] == "building"
+    assert body["index"] in {"building", "ready", "degraded"}
     assert body["llm_configured"] is True
+
