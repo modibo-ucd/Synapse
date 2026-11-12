@@ -124,3 +124,21 @@ async def test_tool_result_produces_citation() -> None:
     assert assembly.sources == ["dailymed-apixaban.md"]
     assert "dailymed-apixaban.md" in assembly.answer
     assert [citation.source_file for citation in assembly.citations] == ["dailymed-apixaban.md"]
+
+
+def test_excerpt_truncates_on_sentence_boundary() -> None:
+    long_text = (
+        "First sentence ends here. Second sentence is longer and continues "
+        "for a while. " + "filler " * 300 + "Final sentence."
+    )
+    excerpt = Answerer._excerpt(long_text)
+    assert len(excerpt) <= 500
+    # The excerpt ends at a sentence boundary (before the filler run), not mid-word.
+    assert excerpt.endswith("…")
+    assert "Final sentence" not in excerpt
+
+
+def test_excerpt_keeps_short_text_untouched() -> None:
+    short = "A short passage."
+    assert Answerer._excerpt(short) == short
+

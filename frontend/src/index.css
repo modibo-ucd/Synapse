@@ -13,6 +13,19 @@
   }
 }
 
+@keyframes citation-highlight {
+  0% {
+    background-color: #dbeafe;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.citation-highlight {
+  animation: citation-highlight 2.5s ease-out;
+}
+
 @layer base {
   html {
     @apply antialiased;

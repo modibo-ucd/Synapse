@@ -15,7 +15,7 @@ export function AnswerView({ answer }: AnswerViewProps) {
       className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
     >
       <h2 className="mb-2 text-base font-semibold text-slate-800">Answer</h2>
-      <Markdown>{answer.answer}</Markdown>
+      <Markdown citations={answer.citations}>{answer.answer}</Markdown>
       <ReviewFlags review={answer.review} />
       <SourcesList sources={answer.sources} citations={answer.citations} />
     </div>

@@ -30,7 +30,11 @@ export function SourcesList({ sources, citations }: SourcesListProps) {
       <h3 className="text-sm font-semibold text-slate-700">Sources</h3>
       <ul className="mt-2 space-y-1">
         {entries.map((entry) => (
-          <li key={entry.key} className="text-sm text-slate-600">
+          <li
+            key={entry.key}
+            id={`cite-source-${entry.key}`}
+            className="scroll-mt-24 text-sm text-slate-600 transition-colors duration-500"
+          >
             <span className="font-medium text-slate-800">{entry.file}</span>
             {entry.section ? <span className="text-slate-500"> · {entry.section}</span> : null}
           </li>

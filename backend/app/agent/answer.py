@@ -189,8 +189,23 @@ class Answerer:
         return " [" + "][".join(ids) + "]"
 
     @staticmethod
-    def _excerpt(text: str, limit: int = 160) -> str:
-        return text if len(text) <= limit else text[:limit].rstrip() + "…"
+    def _excerpt(text: str, limit: int = 500) -> str:
+        """Return ``text`` truncated to at most ``limit`` chars on a sentence boundary."""
+        text = text.strip()
+        if len(text) <= limit:
+            return text
+        window = text[:limit]
+        cut = -1
+        for boundary in (". ", ".\n", "! ", "!\n", "? ", "?\n"):
+            position = window.rfind(boundary)
+            if position > cut:
+                cut = position
+        if cut > 0:
+            return window[: cut + 1].rstrip() + "…"
+        space = window.rfind(" ")
+        if space > 0:
+            return window[:space].rstrip() + "…"
+        return window.rstrip() + "…"
 
     @staticmethod
     def _review_notes(review: Review) -> str:

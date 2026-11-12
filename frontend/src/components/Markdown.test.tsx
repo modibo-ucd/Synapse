@@ -27,4 +27,37 @@ describe('Markdown', () => {
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'A' })).toBeInTheDocument()
   })
+
+  it('turns citation markers into chips inside lists and tables', () => {
+    const citations = [
+      {
+        id: 'S1',
+        source_file: 'dailymed-warfarin.md',
+        section: '4 CONTRAINDICATIONS',
+        chunk_id: 'c1',
+        excerpt: 'warfarin is contraindicated in pregnancy',
+      },
+    ]
+    render(
+      <Markdown citations={citations}>
+        {'- warfarin is contraindicated in pregnancy [S1]\n\n| Drug | Note |\n| --- | --- |\n| warfarin | see [S1] |'}
+      </Markdown>,
+    )
+    expect(screen.getAllByTestId('citation-S1').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders unknown citation ids as plain text', () => {
+    const citations = [
+      {
+        id: 'S1',
+        source_file: 'dailymed-warfarin.md',
+        section: '4 CONTRAINDICATIONS',
+        chunk_id: 'c1',
+        excerpt: 'warfarin is contraindicated in pregnancy',
+      },
+    ]
+    render(<Markdown citations={citations}>{'warfarin [S99]'}</Markdown>)
+    expect(screen.queryByTestId('citation-S99')).not.toBeInTheDocument()
+    expect(screen.getByText('[S99]')).toBeInTheDocument()
+  })
 })
