@@ -34,6 +34,7 @@ export default {
         badge: 'var(--c-badge)',
         'badge-ink': 'var(--c-badge-ink)',
         mark: 'var(--c-mark)',
+        bubble: 'var(--c-bubble)',
       },
       fontFamily: {
         sans: ['"Inter Variable"', ...defaultTheme.fontFamily.sans],

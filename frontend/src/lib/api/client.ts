@@ -1,12 +1,10 @@
-import {
-  ApiErrorPayloadSchema,
-  AskResponseSchema,
-  StageEventSchema,
-} from './schemas'
-import type { AskResponse, StageEvent } from '../../types/api'
+import { ApiErrorPayloadSchema, AskResponseSchema, HealthResponseSchema } from './schemas'
+import type { AskResponse, HealthResponse } from '../../types/api'
 
 const REQUEST_TIMEOUT_MS = 120_000
+const HEALTH_TIMEOUT_MS = 10_000
 
+/** Typed, user-facing API error. Never leaks provider payloads. */
 export class ApiError extends Error {
   readonly code: string
   readonly requestId?: string
@@ -18,6 +16,10 @@ export class ApiError extends Error {
     this.requestId = requestId
     Object.setPrototypeOf(this, new.target.prototype)
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
 }
 
 function parseApiError(payload: unknown): ApiError {
@@ -32,32 +34,63 @@ function parseApiError(payload: unknown): ApiError {
   return new ApiError('unknown_error', 'The server returned an unexpected error.')
 }
 
-async function performRequest(question: string, signal: AbortSignal): Promise<AskResponse> {
-  let response: Response
+async function performFetch(
+  path: string,
+  init: RequestInit,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const controller = new AbortController()
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
+  const onExternalAbort = () => controller.abort()
+  if (signal) {
+    if (signal.aborted) controller.abort()
+    else signal.addEventListener('abort', onExternalAbort, { once: true })
+  }
+
   try {
-    response = await fetch('/ask', {
+    return await fetch(path, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new ApiError(
+        timedOut ? 'timeout' : 'aborted',
+        timedOut ? 'The request timed out. Please try again.' : 'The request was cancelled.',
+      )
+    }
+    throw new ApiError('network_error', 'Could not reach the server. Please try again.')
+  } finally {
+    clearTimeout(timer)
+    if (signal) signal.removeEventListener('abort', onExternalAbort)
+  }
+}
+
+async function errorFrom(response: Response): Promise<ApiError> {
+  let payload: unknown = null
+  try {
+    payload = await response.json()
+  } catch {
+    payload = null
+  }
+  return parseApiError(payload)
+}
+
+/** Non-streaming `POST /ask`; cancellable via the optional signal. */
+export async function askQuestion(question: string, signal?: AbortSignal): Promise<AskResponse> {
+  const response = await performFetch(
+    '/ask',
+    {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
-      signal,
-    })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw error
-    }
-    throw new ApiError('network_error', 'Could not reach the server. Please try again.')
-  }
-
-  if (!response.ok) {
-    let payload: unknown = null
-    try {
-      payload = await response.json()
-    } catch {
-      payload = null
-    }
-    throw parseApiError(payload)
-  }
-
+    },
+    REQUEST_TIMEOUT_MS,
+    signal,
+  )
+  if (!response.ok) throw await errorFrom(response)
   const data: unknown = await response.json()
   const parsed = AskResponseSchema.safeParse(data)
   if (!parsed.success) {
@@ -66,114 +99,14 @@ async function performRequest(question: string, signal: AbortSignal): Promise<As
   return parsed.data
 }
 
-export async function askQuestion(question: string): Promise<AskResponse> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  try {
-    return await performRequest(question, controller.signal)
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError('timeout', 'The request timed out. Please try again.')
-    }
-    throw error
-  } finally {
-    clearTimeout(timer)
+/** `GET /health` — index status, LLM config, version and index stats. */
+export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
+  const response = await performFetch('/health', { method: 'GET' }, HEALTH_TIMEOUT_MS, signal)
+  if (!response.ok) throw await errorFrom(response)
+  const data: unknown = await response.json()
+  const parsed = HealthResponseSchema.safeParse(data)
+  if (!parsed.success) {
+    throw new ApiError('invalid_response', 'The server returned an unexpected response shape.')
   }
-}
-
-export type AskStreamEvent =
-  | { type: 'stage'; event: StageEvent }
-  | { type: 'result'; result: AskResponse }
-  | { type: 'error'; error: ApiError }
-
-function parseSseEvent(raw: string): AskStreamEvent | null {
-  let eventName = 'message'
-  let data = ''
-  for (const line of raw.split('\n')) {
-    if (line.startsWith('event:')) {
-      eventName = line.slice('event:'.length).trim()
-    } else if (line.startsWith('data:')) {
-      data += line.slice('data:'.length).trim()
-    }
-  }
-  if (!data) {
-    return null
-  }
-  try {
-    const parsed: unknown = JSON.parse(data)
-    if (eventName === 'stage') {
-      return { type: 'stage', event: StageEventSchema.parse(parsed) }
-    }
-    if (eventName === 'result') {
-      return { type: 'result', result: AskResponseSchema.parse(parsed) }
-    }
-    if (eventName === 'error') {
-      return { type: 'error', error: parseApiError(parsed) }
-    }
-  } catch {
-    return null
-  }
-  return null
-}
-
-export async function* streamAskQuestion(question: string): AsyncGenerator<AskStreamEvent> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  let response: Response
-  try {
-    response = await fetch('/ask/stream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
-      signal: controller.signal,
-    })
-  } catch (error) {
-    clearTimeout(timer)
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError('timeout', 'The request timed out. Please try again.')
-    }
-    throw new ApiError('network_error', 'Could not reach the server. Please try again.')
-  }
-
-  if (!response.ok) {
-    clearTimeout(timer)
-    let payload: unknown = null
-    try {
-      payload = await response.json()
-    } catch {
-      payload = null
-    }
-    throw parseApiError(payload)
-  }
-  if (!response.body) {
-    clearTimeout(timer)
-    throw new ApiError('stream_unavailable', 'Streaming is not available.')
-  }
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  try {
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-      buffer += decoder.decode(value, { stream: true })
-      let boundary = buffer.indexOf('\n\n')
-      while (boundary >= 0) {
-        const raw = buffer.slice(0, boundary)
-        buffer = buffer.slice(boundary + 2)
-        const event = parseSseEvent(raw)
-        if (event) {
-          yield event
-        }
-        boundary = buffer.indexOf('\n\n')
-      }
-    }
-  } finally {
-    clearTimeout(timer)
-    reader.releaseLock()
-  }
+  return parsed.data
 }

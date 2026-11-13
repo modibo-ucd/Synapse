@@ -6,13 +6,10 @@ export type StageName = 'plan' | 'retrieve' | 'tools' | 'review' | 'answer'
 /** UI/timeline status. The completed `/ask` trace only emits done|skipped|error. */
 export type StageStatus = 'pending' | 'running' | 'done' | 'skipped' | 'error'
 
-/** Backend `StageTraceInfo.status`. */
-export type StageTraceStatus = 'done' | 'skipped' | 'error'
-
 export interface Citation {
   id: string
   source_file: string
-  /** Always present in the backend response; kept non-null to match the contract. */
+  /** Always present in the backend response. */
   section: string
   chunk_id: string
   excerpt: string
@@ -39,9 +36,6 @@ export interface ReviewInfo {
   ambiguity_flags: string[]
 }
 
-/** Legacy alias used by pre-Phase-C components. */
-export type Review = ReviewInfo
-
 export type ToolCallStatus = 'ok' | 'error' | 'timeout'
 
 export interface ToolCallInfo {
@@ -49,9 +43,6 @@ export interface ToolCallInfo {
   arguments: Record<string, unknown>
   status: ToolCallStatus
 }
-
-/** Legacy alias used by pre-Phase-C components. */
-export type ToolCall = ToolCallInfo
 
 export interface Usage {
   tokens_in: number
@@ -117,9 +108,7 @@ export interface AskResponse {
   tool_calls: ToolCallInfo[]
   review: ReviewInfo
   retrieval_mode: 'hybrid' | 'bm25_only'
-  /** Phase A additive field (backend may emit `null`). */
   retrieval?: RetrievalInfo | null
-  /** Phase A additive field (backend may emit `null`). */
   trace?: StageTrace[] | null
   trace_id: string
   usage: Usage
@@ -128,16 +117,18 @@ export interface AskResponse {
   widgets?: EgfrWidget[] | null
 }
 
+export interface IndexStats {
+  files: number
+  chunks: number
+  embedding_model: string | null
+}
+
 export interface HealthResponse {
   status: string
   index: 'building' | 'ready' | 'degraded'
   llm_configured: boolean
   version?: string
-  index_stats?: {
-    files: number
-    chunks: number
-    embedding_model: string | null
-  } | null
+  index_stats?: IndexStats | null
 }
 
 export interface SourceChunkSpan {
@@ -172,42 +163,4 @@ export interface ApiErrorPayload {
     message: string
     request_id?: string | null
   }
-}
-
-/** Raw SSE wire format for the streaming endpoint. */
-export type StreamEvent =
-  | { type: 'stage'; data: StageTrace }
-  | { type: 'result'; data: AskResponse }
-  | { type: 'error'; data: { code: string; message: string; request_id?: string } }
-
-// Legacy streaming event shape (Task 12 SSE `stage` events) used by the
-// existing trace panel and client until the Phase E stream rework lands.
-export interface StageEventDetails {
-  complexity?: string
-  in_scope?: boolean
-  sub_goals?: SubGoal[]
-  mode?: string
-  chunk_count?: number
-  source_files?: string[]
-  chunks?: Array<{
-    source_file: string
-    section: string
-    dense_rank?: number | null
-    bm25_rank?: number | null
-    fused_score?: number
-  }>
-  claims?: number
-  tool_calls?: ToolCallInfo[]
-  verdict?: string
-  unsupported_claims?: string[]
-  ambiguity_flags?: string[]
-  sources?: string[]
-}
-
-export interface StageEvent {
-  stage: StageName
-  status: 'ok' | 'skipped'
-  duration_ms: number
-  summary: string
-  details: StageEventDetails
 }

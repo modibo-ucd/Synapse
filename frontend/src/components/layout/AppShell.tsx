@@ -10,13 +10,15 @@ interface AppShellProps {
   left?: ReactNode
   main: ReactNode
   right?: ReactNode
+  footer?: ReactNode
 }
 
 /**
  * Three-column layout at `>= 1024px` (left 280px / fluid / right 360px); the
- * sidebars become native `<dialog>` drawers below `lg`.
+ * sidebars become native `<dialog>` drawers below `lg`. Both sidebars and the
+ * drawers are always-dark (decision 4).
  */
-export function AppShell({ left, main, right }: AppShellProps) {
+export function AppShell({ left, main, right, footer }: AppShellProps) {
   useVisualViewport()
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const drawer = useUiStore((state) => state.drawer)
@@ -40,16 +42,17 @@ export function AppShell({ left, main, right }: AppShellProps) {
             {left}
           </nav>
         ) : null}
-        <main className="min-h-0 overflow-y-auto p-4 lg:p-6">{main}</main>
+        <main className="min-h-0 overflow-hidden">{main}</main>
         {right ? (
           <aside
             aria-label="Agent trace"
-            className="hidden min-h-0 overflow-y-auto border-l border-line lg:block"
+            className="hidden min-h-0 overflow-y-auto border-l border-line scope-dark bg-side text-ink lg:block"
           >
             {right}
           </aside>
         ) : null}
       </div>
+      {footer ? <footer className="border-t border-line bg-app py-2">{footer}</footer> : null}
       <Drawer side="left" open={drawer === 'history'} onClose={() => setDrawer(null)} label="History">
         {left}
       </Drawer>

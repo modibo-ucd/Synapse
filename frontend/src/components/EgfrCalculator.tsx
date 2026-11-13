@@ -33,16 +33,16 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
     <section
       data-testid="egfr-widget"
       aria-label="eGFR estimator"
-      className="mt-6 border-t border-slate-200 pt-4"
+      className="mt-6 border-t border-line pt-4"
     >
-      <h3 className="text-sm font-semibold text-slate-700">eGFR estimator</h3>
-      <p className="text-xs text-slate-500">
+      <h3 className="text-sm font-semibold text-ink">eGFR estimator</h3>
+      <p className="text-xs text-ink-muted">
         Educational estimate only. Always consult a healthcare professional — this is not
         personalized dosing advice.
       </p>
 
       <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
+        <label className="flex flex-col gap-1 text-xs text-ink-muted">
           Age (years)
           <input
             type="number"
@@ -51,22 +51,22 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
             onChange={(event) => setAge(event.target.value)}
             min={18}
             max={120}
-            className="rounded border border-slate-300 px-2 py-1 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
+        <label className="flex flex-col gap-1 text-xs text-ink-muted">
           Sex
           <select
             data-testid="egfr-sex"
             value={sex}
             onChange={(event) => setSex(event.target.value as Sex)}
-            className="rounded border border-slate-300 px-2 py-1 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
           >
             <option value="male">Male</option>
             <option value="female">Female</option>
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
+        <label className="flex flex-col gap-1 text-xs text-ink-muted">
           Serum creatinine
           <input
             type="number"
@@ -75,16 +75,16 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
             onChange={(event) => setCreatinine(event.target.value)}
             min={0.1}
             step="0.1"
-            className="rounded border border-slate-300 px-2 py-1 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
+        <label className="flex flex-col gap-1 text-xs text-ink-muted">
           Unit
           <select
             data-testid="egfr-unit"
             value={unit}
             onChange={(event) => setUnit(event.target.value as CreatinineUnit)}
-            className="rounded border border-slate-300 px-2 py-1 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
           >
             <option value="mg_dl">mg/dL</option>
             <option value="umol_l">µmol/L</option>
@@ -93,7 +93,7 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
       </div>
 
       {result !== null && (
-        <p data-testid="egfr-result" className="mt-3 text-sm font-semibold text-slate-800">
+        <p data-testid="egfr-result" className="mt-3 text-sm font-semibold text-ink">
           Estimated eGFR: {result} mL/min/1.73 m²
         </p>
       )}
@@ -108,8 +108,8 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
                 data-testid={`egfr-threshold-${threshold.value}`}
                 className={`rounded-full border px-2 py-1 text-xs ${
                   crossed
-                    ? 'border-amber-300 bg-amber-50 text-amber-800'
-                    : 'border-slate-200 bg-white text-slate-600'
+                    ? 'border-champagne bg-champagne/40 text-ink'
+                    : 'border-line bg-surface text-ink-muted'
                 }`}
               >
                 {crossed ? 'Below' : 'Above'} {threshold.value}

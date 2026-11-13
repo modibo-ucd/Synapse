@@ -6,8 +6,8 @@ interface DisclaimerProps {
 
 export function Disclaimer({ text = MEDICAL_DISCLAIMER }: DisclaimerProps) {
   return (
-    <p data-testid="medical-disclaimer" className="text-xs leading-relaxed text-slate-500">
-      <span className="font-semibold text-slate-600">Medical disclaimer:</span> {text}
+    <p data-testid="medical-disclaimer" className="text-xs leading-relaxed text-ink-muted">
+      <span className="font-semibold text-ink">Medical disclaimer:</span> {text}
     </p>
   )
 }

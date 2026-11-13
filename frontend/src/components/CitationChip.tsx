@@ -7,19 +7,16 @@ interface CitationChipProps {
   citation: Citation | undefined
 }
 
-function scrollToSource(id: string) {
-  const target = document.getElementById(`cite-source-${id}`)
-  target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  target?.classList.add('citation-highlight')
-  window.setTimeout(() => target?.classList.remove('citation-highlight'), 2500)
-}
-
+/**
+ * Inline citation chip with a hover/focus/tap excerpt popover. Phase D will
+ * replace the popover with the source modal and cross-highlighting.
+ */
 export function CitationChip({ id, citation }: CitationChipProps) {
   const [open, setOpen] = useState(false)
   const closeTimer = useRef<number | null>(null)
 
   if (!citation) {
-    return <span className="text-slate-500">{`[${id}]`}</span>
+    return <span className="text-ink-muted">{`[${id}]`}</span>
   }
 
   const clearCloseTimer = () => {
@@ -38,16 +35,6 @@ export function CitationChip({ id, citation }: CitationChipProps) {
     closeTimer.current = window.setTimeout(() => setOpen(false), 150)
   }
 
-  const handleClick = () => {
-    scrollToSource(id)
-    setOpen(true)
-  }
-
-  const handleViewInSources = () => {
-    scrollToSource(id)
-    setOpen(false)
-  }
-
   return (
     <span className="relative inline-block">
       <button
@@ -60,8 +47,8 @@ export function CitationChip({ id, citation }: CitationChipProps) {
         onMouseLeave={scheduleClose}
         onFocus={openPopover}
         onBlur={scheduleClose}
-        onClick={handleClick}
-        className="mx-0.5 rounded bg-brand-50 px-1 align-super text-xs font-medium text-brand-700 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+        onClick={openPopover}
+        className="mx-0.5 rounded bg-accent-soft px-1 align-super text-xs font-medium text-accent focus:outline-none"
       >
         {id}
       </button>
@@ -72,18 +59,11 @@ export function CitationChip({ id, citation }: CitationChipProps) {
           data-testid={`citation-popover-${id}`}
           onMouseEnter={clearCloseTimer}
           onMouseLeave={scheduleClose}
-          className="absolute bottom-full left-0 z-20 mb-2 w-72 rounded-md border border-slate-200 bg-white p-3 text-left shadow-lg"
+          className="absolute bottom-full left-0 z-20 mb-2 w-72 rounded-lg border border-line bg-surface p-3 text-left shadow-float"
         >
-          <p className="text-xs font-semibold text-slate-700">{citation.source_file}</p>
-          {citation.section && <p className="text-xs text-slate-500">{citation.section}</p>}
-          <p className="mt-1 text-xs leading-relaxed text-slate-600">{citation.excerpt}</p>
-          <button
-            type="button"
-            onClick={handleViewInSources}
-            className="mt-2 text-xs font-medium text-brand-600 hover:underline focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-          >
-            View in Sources
-          </button>
+          <p className="text-xs font-semibold text-ink">{citation.source_file}</p>
+          {citation.section && <p className="text-xs text-ink-muted">{citation.section}</p>}
+          <p className="mt-1 text-xs leading-relaxed text-ink-muted">{citation.excerpt}</p>
         </span>
       )}
     </span>

@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phase A (backend API) and Phase B (design system, theme engine, responsive shell) completed 2026-11-13. Next: FRONTEND Phase C / Tasks 15/17.
+Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell) and C (chat, history, answer cards) completed 2026-11-13. Next: Tasks 10/11 (Docker + push), then Phase D.
 
 ## Checklist
 
@@ -386,6 +386,40 @@ run` ✓ (50/50). Dev-server smoke ✓ (`/` serves the shell + `/theme-init.js`)
 Visual light/dark at 390px/1280px is DOM-verified via tests; pixel-level checks
 require a real browser (logged as a manual step in the Section 7 matrix).
 
+## FRONTEND Phase C (chat, history, answer cards) — 2026-11-13
+
+Chat core against the real, non-streaming `POST /ask` (Spec 0.3/4/5/6.7/6.9/7).
+
+- **API client** — `lib/api/client.ts` rewritten non-streaming: `askQuestion(question, signal?)`
+  and `getHealth(signal?)` share a `performFetch` helper (AbortController + timeout, friendly
+  `ApiError` for network/timeout/aborted/invalid-response/4xx-5xx); added
+  `HealthResponseSchema`; removed dead legacy streaming types/schemas.
+- **Hooks** — `useHealth` (5s poll while building / 30s ready / 10s retry on failure, pauses
+  when the tab is hidden, aborts on unmount), `useAutoScroll` (sticks to bottom only when
+  already near it), `useSelectedTurn` (selected or latest turn).
+- **Components** (nine-palette tokens only): `SafeMarkdown` (react-markdown + remark-gfm +
+  rehype-sanitize, no `dangerouslySetInnerHTML`), `UserBubble`, `AnswerCard` (grounding chip
+  per decision 7, reading-time label, copy button, `ReviewNotes` champagne block,
+  ComparisonMatrix + EgfrCalculator preserved, ALWAYS-visible disclaimer), `EmptyState` (4
+  public questions + independence hint), `StickyAskBar` (6.7: auto-grow, IME-safe Enter,
+  1800/2000 counter, Stop, caption, API-unreachable disabled state), `ChatFeed`,
+  `HistorySidebar` (persist/rename/delete/clear-all with confirm, Today/Yesterday/Earlier),
+  `TracePanel` (IndexStatus + latency/token/stage metrics + RetrievedChunks + ToolCalls +
+  review), `Footer` (6.9: status dot, `v{version}` -> `/docs`, lock note), `lib/{reading,version}`.
+- **Wiring** — `ChatPage` + `useChat` (non-streaming controller bound to the history store),
+  `App` (HistorySidebar/ChatPage/TracePanel/Footer), `AppShell` (footer landmark + always-dark
+  right rail per decision 4), `tailwind.config.ts` (+`bubble`), `vite.config.ts`
+  (+`__APP_VERSION__` define).
+- **Cleanup** — removed superseded legacy `Markdown`, `ReviewFlags`, `SourcesList`,
+  `citationMarkers`, `ChatInput`, `AnswerView`, `ExampleQuestions`; restyled
+  `CitationChip`/`Disclaimer`/`ComparisonMatrix`/`EgfrCalculator` to tokens.
+
+Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vitest run` ✓
+(79/79, 19 files), `pytest` ✓ (207). Live smoke: backend + built frontend at `/`;
+`/health` 200; the 4 public questions returned the correct sources with the disclaimer
+in `answer` (Q1 warfarin, Q2 apixaban+warfarin, Q3 sertraline+warfarin, Q4 metformin;
+hybrid mode; verdicts pass/revise/pass/pass; p50 ~15s). History persistence is covered by
+the Zustand-persist unit tests (reload restores localStorage).
 ## Known issues
 
 - (Resolved Task 11) `assignment-pharma.pdf` was committed (`ec2f3b3`, `98613df`) and

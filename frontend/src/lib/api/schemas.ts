@@ -119,36 +119,20 @@ export const ApiErrorPayloadSchema = z.object({
   }),
 })
 
-export const StageEventDetailsSchema = z.object({
-  complexity: z.string().optional(),
-  in_scope: z.boolean().optional(),
-  sub_goals: z.array(SubGoalSchema).optional(),
-  mode: z.string().optional(),
-  chunk_count: z.number().optional(),
-  source_files: z.array(z.string()).optional(),
-  chunks: z
-    .array(
-      z.object({
-        source_file: z.string(),
-        section: z.string(),
-        dense_rank: z.number().nullable().optional(),
-        bm25_rank: z.number().nullable().optional(),
-        fused_score: z.number().optional(),
-      }),
-    )
-    .optional(),
-  claims: z.number().optional(),
-  tool_calls: z.array(ToolCallSchema).optional(),
-  verdict: z.string().optional(),
-  unsupported_claims: z.array(z.string()).optional(),
-  ambiguity_flags: z.array(z.string()).optional(),
-  sources: z.array(z.string()).optional(),
-})
+export const IndexStatsSchema = z
+  .object({
+    files: z.number(),
+    chunks: z.number(),
+    embedding_model: z.string().nullable().default(null),
+  })
+  .nullable()
 
-export const StageEventSchema = z.object({
-  stage: z.enum(STAGE_NAMES),
-  status: z.enum(['ok', 'skipped']).default('ok'),
-  duration_ms: z.number().default(0),
-  summary: z.string().default(''),
-  details: StageEventDetailsSchema.default({}),
-})
+export const HealthResponseSchema = z
+  .object({
+    status: z.string(),
+    index: z.enum(['building', 'ready', 'degraded']),
+    llm_configured: z.boolean(),
+    version: z.string().optional(),
+    index_stats: IndexStatsSchema.optional(),
+  })
+  .passthrough()

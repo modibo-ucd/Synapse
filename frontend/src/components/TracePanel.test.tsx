@@ -1,64 +1,92 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import type { StageEvent } from '../types/api'
+import type { AskResponse } from '../types/api'
+import type { Turn } from '../types/ui'
 import { TracePanel } from './TracePanel'
 
-const recorded: StageEvent[] = [
-  {
-    stage: 'plan',
+vi.mock('../lib/api/client', () => ({
+  getHealth: vi.fn(async () => ({
     status: 'ok',
-    duration_ms: 120,
-    summary: 'simple, 1 sub-goal(s)',
-    details: {
-      complexity: 'simple',
-      in_scope: true,
-      sub_goals: [
-        { id: 'sg1', question: 'warfarin contraindications', intent: '', entities: ['warfarin'] },
-      ],
-    },
-  },
-  {
-    stage: 'retrieve',
-    status: 'ok',
-    duration_ms: 80,
-    summary: '1 chunk(s) from 1 file(s) (hybrid)',
-    details: {
+    index: 'ready',
+    llm_configured: true,
+    version: '0.1.0',
+    index_stats: { files: 21, chunks: 300, embedding_model: 'text-embedding-3-small' },
+  })),
+}))
+
+function makeResponse(): AskResponse {
+  return {
+    answer: 'answer',
+    sources: ['dailymed-warfarin.md'],
+    citations: [
+      {
+        id: 'S1',
+        source_file: 'dailymed-warfarin.md',
+        section: '4 CONTRAINDICATIONS',
+        chunk_id: 'c0',
+        excerpt: 'warfarin contraindicated in pregnancy',
+      },
+    ],
+    disclaimer: '',
+    tool_calls: [{ tool: 'label_section_lookup', arguments: { drug: 'warfarin' }, status: 'ok' }],
+    review: { verdict: 'pass', unsupported_claims: [], ambiguity_flags: [] },
+    retrieval_mode: 'hybrid',
+    retrieval: {
       mode: 'hybrid',
-      chunk_count: 1,
-      source_files: ['dailymed-warfarin.md'],
+      candidates: 10,
+      returned: 3,
       chunks: [
         {
+          chunk_id: 'c0',
           source_file: 'dailymed-warfarin.md',
-          section: '4 CONTRAINDICATIONS',
+          section_path: '4 CONTRAINDICATIONS',
+          excerpt: 'warfarin contraindicated in pregnancy',
           dense_rank: 1,
-          bm25_rank: 1,
+          bm25_rank: 2,
           fused_score: 0.03,
+          cited: true,
         },
       ],
     },
-  },
-]
+    trace: [
+      { stage: 'plan', status: 'done', duration_ms: 120, summary: 'simple' },
+      { stage: 'retrieve', status: 'done', duration_ms: 80, summary: '1 chunk' },
+    ],
+    trace_id: 't1',
+    usage: { tokens_in: 10, tokens_out: 20 },
+    latency_ms: 250,
+  }
+}
+
+function makeTurn(): Turn {
+  return {
+    id: 'turn-1',
+    question: 'q?',
+    createdAt: Date.now(),
+    status: 'done',
+    response: makeResponse(),
+  }
+}
 
 describe('TracePanel', () => {
-  it('renders the five stages with expandable details from recorded events', () => {
-    render(<TracePanel events={recorded} loading={true} />)
-    expect(screen.getByText('Plan')).toBeInTheDocument()
-    expect(screen.getByText('Retrieve')).toBeInTheDocument()
-    expect(screen.getByText('Tools')).toBeInTheDocument()
-    expect(screen.getByText('Review')).toBeInTheDocument()
-    expect(screen.getByText('Answer')).toBeInTheDocument()
-
-    expect(screen.getByText(/warfarin contraindications/)).toBeInTheDocument()
-    expect(screen.getAllByText(/dailymed-warfarin\.md/).length).toBeGreaterThan(0)
+  it('shows the index status from /health', async () => {
+    render(<TracePanel turn={null} />)
+    expect(await screen.findByText('Index ready')).toBeInTheDocument()
   })
 
-  it('collapses the stage list when the toggle is clicked', async () => {
-    render(<TracePanel events={recorded} loading={false} />)
-    const toggle = screen.getByTestId('trace-toggle')
-    expect(screen.getByText('Retrieve')).toBeInTheDocument()
-    await userEvent.click(toggle)
-    expect(screen.queryByText('Retrieve')).not.toBeInTheDocument()
+  it('lists retrieved chunks with ranks and the cited S-number', async () => {
+    render(<TracePanel turn={makeTurn()} />)
+    expect(await screen.findByTestId('trace-chunks')).toBeInTheDocument()
+    expect(screen.getByTestId('trace-chunk-0')).toHaveTextContent('dailymed-warfarin.md')
+    expect(screen.getByTestId('trace-chunk-0')).toHaveTextContent(/dense 1/)
+    expect(screen.getByTestId('trace-chunk-0')).toHaveTextContent('S1')
+  })
+
+  it('shows metrics, tool calls and the review verdict', async () => {
+    render(<TracePanel turn={makeTurn()} />)
+    expect(await screen.findByTestId('trace-metrics')).toBeInTheDocument()
+    expect(screen.getByTestId('trace-tools')).toHaveTextContent('label_section_lookup')
+    expect(screen.getByTestId('trace-review')).toHaveTextContent('pass')
   })
 })

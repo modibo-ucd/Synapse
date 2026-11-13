@@ -23,11 +23,11 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
     <section
       data-testid="comparison-matrix"
       aria-label="Drug comparison"
-      className="mt-6 border-t border-slate-200 pt-4"
+      className="mt-6 border-t border-line pt-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-700">Comparison</h3>
-        <label className="flex items-center gap-2 text-xs text-slate-500">
+        <h3 className="text-sm font-semibold text-ink">Comparison</h3>
+        <label className="flex items-center gap-2 text-xs text-ink-muted">
           Filter
           <input
             type="text"
@@ -35,7 +35,7 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
             placeholder="e.g. contraindications"
-            className="rounded border border-slate-300 px-2 py-1 text-xs focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="rounded border border-line px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
           />
         </label>
       </div>
@@ -46,7 +46,7 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-10 bg-white px-2 py-1 text-left font-semibold text-slate-700"
+                className="sticky left-0 z-10 bg-surface px-2 py-1 text-left font-semibold text-ink"
               >
                 Attribute
               </th>
@@ -54,7 +54,7 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
                 <th
                   key={drug}
                   scope="col"
-                  className="px-2 py-1 text-left font-semibold text-slate-700"
+                  className="px-2 py-1 text-left font-semibold text-ink"
                 >
                   {drug}
                 </th>
@@ -66,7 +66,7 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
               <tr key={row.attribute}>
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left align-top font-medium text-slate-700"
+                  className="sticky left-0 z-10 bg-surface px-2 py-1.5 text-left align-top font-medium text-ink"
                 >
                   {formatAttribute(row.attribute)}
                 </th>
@@ -75,7 +75,7 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
                   return (
                     <td
                       key={drug}
-                      className="border-t border-slate-100 px-2 py-1.5 align-top text-slate-600"
+                      className="border-t border-line px-2 py-1.5 align-top text-ink-muted"
                     >
                       {cell ? (
                         <>
