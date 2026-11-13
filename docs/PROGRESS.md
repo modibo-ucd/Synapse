@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell) and C (chat, history, answer cards) completed 2026-11-13. Next: Tasks 10/11 (Docker + push), then Phase D.
+Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell), C (chat, history, answer cards) and D (source badges, citations, modal, cross-highlight) completed 2026-11-13. Next: Phase E.
 
 ## Checklist
 
@@ -420,6 +420,40 @@ Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vi
 in `answer` (Q1 warfarin, Q2 apixaban+warfarin, Q3 sertraline+warfarin, Q4 metformin;
 hybrid mode; verdicts pass/revise/pass/pass; p50 ~15s). History persistence is covered by
 the Zustand-persist unit tests (reload restores localStorage).
+## FRONTEND Phase D (source badges, modal, cross-highlighting) — 2026-11-13
+
+Source verification: badges, citation chips and a native `<dialog>` source reader with
+cross-highlighted passages (Spec 5 / 6.1).
+
+- **Markdown plugins** — `lib/markdown/rehypeSourceHighlight.ts` (whole-block highlight from
+  mdast `position.start/end.offset`, nested-`li` guard, `SKIP` to avoid double-marking) and
+  `rehypeCitations.ts` (`[S\d+]` text → controlled `cite-chip` elements, skips `code`/`pre`/`a`).
+  `SafeMarkdown` applies them in the fixed order
+  `[rehypeSourceHighlight, rehypeSanitize(extended schema), rehypeCitations]`, maps `cite-chip`
+  to `CitationChip`, and accepts `highlightRanges` / `citations` / `onOpenCitation`.
+- **No front matter** — all 21 corpus files start with a `# Title` H1, so `remark-frontmatter`
+  is NOT used (positions stay valid without it).
+- **Source loading** — `lib/api/client.getSourceDocument` + `SourceDocumentSchema` (Zod);
+  `hooks/useSourceDocument` caches by file name + ETag and revalidates with `If-None-Match`
+  (304 reuses the cached copy; a network error keeps stale content when present).
+- **Components** — `SourceBadges` (per-file badge with DailyMed/MedlinePlus/Glossary tag; click
+  sets `ui.sourceView` with cited/retrieved chunk ids), `CitationChip` (hover/focus tooltip +
+  click-to-open), `sources/SourceModal` (native `<dialog>` + `showModal()`, `.glass-strong
+  shadow-glass`, full-screen sheet `<lg`, "N / M" passage nav cycling
+  `[data-highlight="primary"]` in DOM order, auto-scroll first primary + `.is-focused`,
+  Esc + backdrop-click close, focus return, loading/error/Retry), `TracePanel` chunk rows now
+  click through to the modal.
+- **Wiring** — `App` mounts `SourceModal` bound to `ui.sourceView`; `AnswerCard` passes
+  citations + renders `SourceBadges`; `.source-modal` CSS added; `test/setup.ts` stubs
+  `showModal`/`close`/`scrollIntoView` (jsdom lacks them).
+- **haptic()** deliberately deferred to Phase F per the task instructions.
+
+Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vitest run` ✓
+(96/96, 22 files), `pytest` ✓ (207). Section 6.1 highlight cases covered (block marked /
+neighbours not / table row / nested list item / `<script>` still stripped / out-of-range
+no-op), plus chips, badges, modal (opens, highlights, scrolls, Esc, focus restore, 404) and
+hook (cache + ETag) tests.
+
 ## Bug fix — theme consistency & side-panel reactivity — 2026-11-13
 
 The side panels (History sidebar + Agent trace panel) stayed dark because they

@@ -1,5 +1,5 @@
-import { ApiErrorPayloadSchema, AskResponseSchema, HealthResponseSchema } from './schemas'
-import type { AskResponse, HealthResponse } from '../../types/api'
+import { ApiErrorPayloadSchema, AskResponseSchema, HealthResponseSchema, SourceDocumentSchema } from './schemas'
+import type { AskResponse, HealthResponse, SourceDocument } from '../../types/api'
 
 const REQUEST_TIMEOUT_MS = 120_000
 const HEALTH_TIMEOUT_MS = 10_000
@@ -109,4 +109,39 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
     throw new ApiError('invalid_response', 'The server returned an unexpected response shape.')
   }
   return parsed.data
+}
+
+const SOURCE_TIMEOUT_MS = 30_000
+
+export interface SourceFetchResult {
+  /** `null` when the server answered 304 — the caller reuses its cached copy. */
+  document: SourceDocument | null
+  etag: string | null
+}
+
+/**
+ * `GET /api/v1/sources/{file_name}` with optional ETag revalidation. A 304 is
+ * surfaced as `{ document: null, etag }` rather than an error.
+ */
+export async function getSourceDocument(
+  fileName: string,
+  etag?: string,
+  signal?: AbortSignal,
+): Promise<SourceFetchResult> {
+  const headers: Record<string, string> = {}
+  if (etag) headers['If-None-Match'] = etag
+  const response = await performFetch(
+    `/api/v1/sources/${encodeURIComponent(fileName)}`,
+    { method: 'GET', headers },
+    SOURCE_TIMEOUT_MS,
+    signal,
+  )
+  if (response.status === 304) return { document: null, etag: etag ?? null }
+  if (!response.ok) throw await errorFrom(response)
+  const data: unknown = await response.json()
+  const parsed = SourceDocumentSchema.safeParse(data)
+  if (!parsed.success) {
+    throw new ApiError('invalid_response', 'The server returned an unexpected response shape.')
+  }
+  return { document: parsed.data, etag: response.headers.get('ETag') }
 }

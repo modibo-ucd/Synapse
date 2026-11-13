@@ -136,3 +136,19 @@ export const HealthResponseSchema = z
     index_stats: IndexStatsSchema.optional(),
   })
   .passthrough()
+
+export const SourceChunkSpanSchema = z.object({
+  chunk_id: z.string(),
+  section_path: z.string(),
+  start: z.number(),
+  end: z.number(),
+})
+
+export const SourceDocumentSchema = z.object({
+  file_name: z.string(),
+  title: z.string(),
+  drug_name: z.string(),
+  source_type: z.enum(['dailymed', 'medlineplus', 'glossary']),
+  markdown: z.string(),
+  chunks: z.array(SourceChunkSpanSchema).default([]),
+})

@@ -5,11 +5,12 @@ import { ComparisonMatrix } from '../../components/ComparisonMatrix'
 import { Disclaimer } from '../../components/Disclaimer'
 import { EgfrCalculator } from '../../components/EgfrCalculator'
 import { ReviewNotes } from '../../components/ReviewNotes'
+import { SourceBadges } from '../../components/SourceBadges'
 import { SafeMarkdown } from '../../components/SafeMarkdown'
 import { MEDICAL_DISCLAIMER } from '../../lib/disclaimer'
 import { countWords, estimateReadingSeconds, formatReadingTime } from '../../lib/reading'
 import { useUiStore } from '../../stores/ui'
-import type { ReviewVerdict } from '../../types/api'
+import type { Citation, ReviewVerdict } from '../../types/api'
 import type { Turn } from '../../types/ui'
 
 function groundingLabel(verdict: ReviewVerdict): string {
@@ -69,6 +70,15 @@ interface AnswerCardProps {
 /** The assistant message for one turn: answer, widgets, review notes, disclaimer. */
 export function AnswerCard({ turn }: AnswerCardProps) {
   const setSelectedTurnId = useUiStore((state) => state.setSelectedTurnId)
+  const setSourceView = useUiStore((state) => state.setSourceView)
+
+  const openCitation = (citation: Citation) => {
+    setSourceView({
+      fileName: citation.source_file,
+      primaryChunkIds: [citation.chunk_id],
+      secondaryChunkIds: [],
+    })
+  }
 
   if (turn.status === 'pending') {
     return (
@@ -124,7 +134,9 @@ export function AnswerCard({ turn }: AnswerCardProps) {
       </header>
 
       <div className="mt-3">
-        <SafeMarkdown>{response.answer}</SafeMarkdown>
+        <SafeMarkdown citations={response.citations} onOpenCitation={openCitation}>
+          {response.answer}
+        </SafeMarkdown>
       </div>
 
       {response.comparison && (
@@ -135,6 +147,12 @@ export function AnswerCard({ turn }: AnswerCardProps) {
       ))}
 
       <ReviewNotes review={response.review} />
+
+      <SourceBadges
+        sources={response.sources}
+        citations={response.citations}
+        retrievedChunks={response.retrieval?.chunks ?? []}
+      />
 
       <div className="mt-4 border-t border-line pt-3">
         <Disclaimer text={response.disclaimer || MEDICAL_DISCLAIMER} />

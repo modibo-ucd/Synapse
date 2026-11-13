@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useUiStore } from '../stores/ui'
 import type { AskResponse } from '../types/api'
 import type { Turn } from '../types/ui'
 import { TracePanel } from './TracePanel'
@@ -70,6 +72,10 @@ function makeTurn(): Turn {
 }
 
 describe('TracePanel', () => {
+  beforeEach(() => {
+    useUiStore.setState({ sourceView: null })
+  })
+
   it('shows the index status from /health', async () => {
     render(<TracePanel turn={null} />)
     expect(await screen.findByText('Index ready')).toBeInTheDocument()
@@ -88,5 +94,16 @@ describe('TracePanel', () => {
     expect(await screen.findByTestId('trace-metrics')).toBeInTheDocument()
     expect(screen.getByTestId('trace-tools')).toHaveTextContent('label_section_lookup')
     expect(screen.getByTestId('trace-review')).toHaveTextContent('pass')
+  })
+
+  it('opens a source view target when a chunk row is clicked', async () => {
+    render(<TracePanel turn={makeTurn()} />)
+    await screen.findByTestId('trace-chunks')
+    await userEvent.click(screen.getByTestId('trace-chunk-0'))
+    expect(useUiStore.getState().sourceView).toEqual({
+      fileName: 'dailymed-warfarin.md',
+      primaryChunkIds: ['c0'],
+      secondaryChunkIds: [],
+    })
   })
 })

@@ -1,4 +1,5 @@
 import { useHealth, type HealthSnapshot } from '../hooks/useHealth'
+import { useUiStore } from '../stores/ui'
 import type { RetrievedChunk, ReviewInfo, StageTrace, ToolCallInfo, Usage } from '../types/api'
 import type { Turn } from '../types/ui'
 
@@ -81,34 +82,50 @@ function QueryMetrics({
   )
 }
 
-function RetrievedChunks({ chunks, citedIds }: { chunks: RetrievedChunk[]; citedIds: Map<string, string> }) {
+function RetrievedChunks({
+  chunks,
+  citedIds,
+  onOpenChunk,
+}: {
+  chunks: RetrievedChunk[]
+  citedIds: Map<string, string>
+  onOpenChunk: (chunk: RetrievedChunk) => void
+}) {
   if (chunks.length === 0) {
-    return <p className="text-xs text-ink-muted">No retrieved chunks reported.</p>
+    return <p className="text-xs text-ink-muted">No retrieved chunks for this turn.</p>
   }
   return (
     <section data-testid="trace-chunks" aria-label="Retrieved chunks">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Retrieved</h3>
       <ul className="mt-2 space-y-2">
         {chunks.map((chunk, index) => (
-          <li
-            key={`${chunk.chunk_id}-${index}`}
-            data-testid={`trace-chunk-${index}`}
-            className="rounded-lg border border-line p-2"
-          >
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="truncate font-medium text-ink">{chunk.source_file}</span>
-              {chunk.cited && (
-                <span className="rounded bg-badge px-1 text-[10px] font-medium text-badge-ink">
-                  {citedIds.get(chunk.chunk_id) ?? 'cited'}
-                </span>
-              )}
-            </div>
-            <p className="mt-0.5 truncate text-[11px] text-ink-muted">{chunk.section_path}</p>
-            <p className="mt-1 line-clamp-2 text-xs leading-snug text-ink-muted">{chunk.excerpt}</p>
-            <p className="mt-1 text-[11px] text-ink-muted">
-              dense {chunk.dense_rank ?? '–'} · bm25 {chunk.bm25_rank ?? '–'} · fused{' '}
-              {chunk.fused_score.toFixed(3)}
-            </p>
+          <li key={`${chunk.chunk_id}-${index}`} className="rounded-lg border border-line">
+            <button
+              type="button"
+              data-testid={`trace-chunk-${index}`}
+              aria-label={`Open source ${chunk.source_file}`}
+              onClick={() => onOpenChunk(chunk)}
+              className="block w-full p-2 text-left transition-colors hover:bg-accent-soft"
+            >
+              <span className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate font-medium text-ink">{chunk.source_file}</span>
+                {chunk.cited && (
+                  <span className="rounded bg-badge px-1 text-[10px] font-medium text-badge-ink">
+                    {citedIds.get(chunk.chunk_id) ?? 'cited'}
+                  </span>
+                )}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] text-ink-muted">
+                {chunk.section_path}
+              </span>
+              <span className="mt-1 line-clamp-2 text-xs leading-snug text-ink-muted">
+                {chunk.excerpt}
+              </span>
+              <span className="mt-1 block text-[11px] text-ink-muted">
+                dense {chunk.dense_rank ?? '–'} · bm25 {chunk.bm25_rank ?? '–'} · fused{' '}
+                {chunk.fused_score.toFixed(3)}
+              </span>
+            </button>
           </li>
         ))}
       </ul>
@@ -150,10 +167,19 @@ interface TracePanelProps {
   turn: Turn | null
 }
 
-/** Basic trace panel (Phase C): index status, metrics and retrieved chunks. */
+/** Trace panel: index status, metrics, retrieved chunks (click-through) and tools. */
 export function TracePanel({ turn }: TracePanelProps) {
   const health = useHealth()
+  const setSourceView = useUiStore((state) => state.setSourceView)
   const response = turn?.response
+
+  const openChunk = (chunk: RetrievedChunk) => {
+    setSourceView({
+      fileName: chunk.source_file,
+      primaryChunkIds: [chunk.chunk_id],
+      secondaryChunkIds: [],
+    })
+  }
 
   return (
     <div data-testid="trace-panel" className="flex h-full flex-col gap-4 p-4 text-ink">
@@ -164,6 +190,7 @@ export function TracePanel({ turn }: TracePanelProps) {
           <RetrievedChunks
             chunks={response.retrieval?.chunks ?? []}
             citedIds={new Map(response.citations.map((citation) => [citation.chunk_id, citation.id]))}
+            onOpenChunk={openChunk}
           />
           <ToolCalls calls={response.tool_calls} />
           <ReviewSummary review={response.review} />

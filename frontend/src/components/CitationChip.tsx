@@ -5,13 +5,14 @@ import type { Citation } from '../types/api'
 interface CitationChipProps {
   id: string
   citation: Citation | undefined
+  onOpen?: (citation: Citation) => void
 }
 
 /**
- * Inline citation chip with a hover/focus/tap excerpt popover. Phase D will
- * replace the popover with the source modal and cross-highlighting.
+ * Inline citation chip. Hover/focus shows an excerpt tooltip; click opens the
+ * source modal at this citation's chunk. Unknown ids render as plain text.
  */
-export function CitationChip({ id, citation }: CitationChipProps) {
+export function CitationChip({ id, citation, onOpen }: CitationChipProps) {
   const [open, setOpen] = useState(false)
   const closeTimer = useRef<number | null>(null)
 
@@ -47,7 +48,7 @@ export function CitationChip({ id, citation }: CitationChipProps) {
         onMouseLeave={scheduleClose}
         onFocus={openPopover}
         onBlur={scheduleClose}
-        onClick={openPopover}
+        onClick={() => onOpen?.(citation)}
         className="mx-0.5 rounded bg-accent-soft px-1 align-super text-xs font-medium text-accent focus:outline-none"
       >
         {id}
