@@ -345,4 +345,4 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
 - [ ] Public evaluation questions pass the eval harness.
 - [ ] Types, lint and format pass; tests added; unit tests make zero real LLM calls.
 - [ ] No secrets, PDF or `.env` in the repo, image or logs.
-- [ ] `docs/PROGRESS.md` updated; commit pushed.
+- [ ] `docs/ai/PROGRESS.md` updated; commit pushed.
