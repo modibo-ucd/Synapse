@@ -37,7 +37,7 @@ export function AppShell({ left, main, right, footer }: AppShellProps) {
         {left ? (
           <nav
             aria-label="History"
-            className="hidden min-h-0 overflow-y-auto border-r border-line scope-dark bg-side text-ink lg:block"
+            className="hidden min-h-0 overflow-y-auto border-r border-line bg-side text-ink lg:block"
           >
             {left}
           </nav>
@@ -46,7 +46,7 @@ export function AppShell({ left, main, right, footer }: AppShellProps) {
         {right ? (
           <aside
             aria-label="Agent trace"
-            className="hidden min-h-0 overflow-y-auto border-l border-line scope-dark bg-side text-ink lg:block"
+            className="hidden min-h-0 overflow-y-auto border-l border-line bg-side text-ink lg:block"
           >
             {right}
           </aside>

@@ -16,7 +16,7 @@
 
   color-scheme: light;
   --c-bg: var(--alabaster);
-  --c-side: var(--night);
+  --c-side: var(--alabaster);
   --c-surface: color-mix(in srgb, var(--alabaster) 50%, white);
   --c-card: var(--cream);
   --c-card-line: color-mix(in srgb, var(--night) 10%, var(--champagne));
@@ -34,9 +34,8 @@
   --c-bubble: var(--ice);
 }
 
-/* Dark theme AND always-dark scopes (sidebars, drawers) share the same variables */
-:root.dark,
-.scope-dark {
+/* Dark theme */
+:root.dark {
   color-scheme: dark;
   --c-surface: color-mix(in srgb, var(--night) 90%, white);
   --c-card: color-mix(in srgb, var(--night) 93%, white);
@@ -54,7 +53,7 @@
 }
 :root.dark {
   --c-bg: var(--night);
-  --c-side: color-mix(in srgb, var(--night) 78%, black);
+  --c-side: var(--night);
 }
 
 html,

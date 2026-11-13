@@ -420,6 +420,22 @@ Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vi
 in `answer` (Q1 warfarin, Q2 apixaban+warfarin, Q3 sertraline+warfarin, Q4 metformin;
 hybrid mode; verdicts pass/revise/pass/pass; p50 ~15s). History persistence is covered by
 the Zustand-persist unit tests (reload restores localStorage).
+## Bug fix — theme consistency & side-panel reactivity — 2026-11-13
+
+The side panels (History sidebar + Agent trace panel) stayed dark because they
+used a forced `.scope-dark` scope plus `--c-side: var(--night)`. Per the owner's
+request this overrides FRONTEND_SPEC decision 4 ("sidebars are #243341 in BOTH
+themes"): sidebars and drawers now follow the theme toggle.
+
+- `index.css` — `--c-side` is now `var(--alabaster)` in light and `var(--night)`
+  in dark; removed the dead `.scope-dark` selector.
+- `AppShell` / `Drawer` / `TracePanel` — dropped `scope-dark` so they use the
+  theme-reactive `bg-side` / `text-ink` tokens.
+- `App.test.tsx` — added a test asserting the sidebars use `bg-side` (not
+  `scope-dark`) and that the header toggle flips the root `dark` class.
+
+Checks: `npm run build` ✓, `npm run lint` ✓, `npx vitest run` ✓ (80/80),
+`pytest` ✓ (207).
 ## Known issues
 
 - (Resolved Task 11) `assignment-pharma.pdf` was committed (`ec2f3b3`, `98613df`) and

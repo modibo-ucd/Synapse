@@ -156,7 +156,7 @@ export function TracePanel({ turn }: TracePanelProps) {
   const response = turn?.response
 
   return (
-    <div data-testid="trace-panel" className="scope-dark flex h-full flex-col gap-4 p-4 text-ink">
+    <div data-testid="trace-panel" className="flex h-full flex-col gap-4 p-4 text-ink">
       <IndexStatus health={health} />
       {response ? (
         <>
