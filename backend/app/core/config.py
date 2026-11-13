@@ -47,9 +47,6 @@ class Settings(BaseSettings):
 
     # Optional overrides and runtime tuning.
     llm_provider: str = "openai"
-    plan_model: str = ""
-    review_model: str = ""
-    draft_model: str = ""
     corpus_dir: str = "corpus"
     cache_dir: str = "/tmp/synapse-cache"
     max_sub_goals: int = MAX_SUB_GOALS
@@ -62,8 +59,6 @@ class Settings(BaseSettings):
     retrieval_top_k: int = RETRIEVAL_TOP_K
     retrieval_token_budget: int = RETRIEVAL_TOKEN_BUDGET
     index_ready_timeout_s: float = INDEX_READY_TIMEOUT_S
-    rate_limit_per_min: int = 0
-    semantic_cache_enabled: bool = False
     log_level: str = "INFO"
     app_version: str = "0.1.0"
 

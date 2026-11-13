@@ -28,10 +28,10 @@ def test_unquoted_string_passes_through(monkeypatch) -> None:
 
 def test_non_string_fields_coerce_after_stripping(monkeypatch) -> None:
     monkeypatch.setenv("MAX_SUB_GOALS", '"5"')
-    monkeypatch.setenv("SEMANTIC_CACHE_ENABLED", "true")
+    monkeypatch.setenv("REQUEST_TIMEOUT_S", '"45.5"')
     settings = Settings(_env_file=None)
     assert settings.max_sub_goals == 5
-    assert settings.semantic_cache_enabled is True
+    assert settings.request_timeout_s == 45.5
 
 
 def test_llm_configured_false_without_env(monkeypatch) -> None:
@@ -56,6 +56,4 @@ def test_defaults(monkeypatch) -> None:
     assert settings.max_sub_goals == 5
     assert settings.max_tool_calls == 4
     assert settings.request_timeout_s == 90
-    assert settings.rate_limit_per_min == 0
-    assert settings.semantic_cache_enabled is False
     assert settings.log_level == "INFO"
