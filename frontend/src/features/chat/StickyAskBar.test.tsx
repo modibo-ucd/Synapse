@@ -65,7 +65,9 @@ describe('StickyAskBar', () => {
     render(<Harness onSubmit={() => {}} disabledReason="The API is unreachable" />)
     expect(screen.getByTestId('question-input')).toBeDisabled()
     expect(screen.getByTestId('submit-button')).toBeDisabled()
-    expect(screen.getByTestId('ask-bar-disabled-reason')).toHaveTextContent('The API is unreachable')
+    expect(screen.getByTestId('ask-bar-disabled-reason')).toHaveTextContent(
+      'The API is unreachable',
+    )
   })
 
   it('always shows the not-medical-advice caption', () => {

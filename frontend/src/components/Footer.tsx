@@ -3,9 +3,7 @@ import { Lock } from 'lucide-react'
 import { useHealth } from '../hooks/useHealth'
 import { APP_VERSION } from '../lib/version'
 
-function footerDot(
-  health: ReturnType<typeof useHealth>,
-): { dot: string; text: string } {
+function footerDot(health: ReturnType<typeof useHealth>): { dot: string; text: string } {
   if (!health) return { dot: 'bg-ink-muted', text: 'Checking…' }
   if (health.status === 'unreachable') return { dot: 'bg-ink-muted', text: 'API unreachable' }
   if (health.index === 'building') return { dot: 'bg-glacial animate-dot-pulse', text: 'Indexing…' }
@@ -22,7 +20,10 @@ export function Footer() {
   const version = health?.version ?? APP_VERSION
 
   return (
-    <div data-testid="footer" className="mx-auto flex max-w-6xl items-center gap-2 px-2 text-xs text-ink-muted">
+    <div
+      data-testid="footer"
+      className="mx-auto flex max-w-6xl items-center gap-2 px-2 text-xs text-ink-muted"
+    >
       <span aria-hidden="true" className={`h-2 w-2 rounded-full ${status.dot}`} />
       <span data-testid="footer-status">{status.text}</span>
       <a

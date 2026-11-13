@@ -50,4 +50,3 @@ describe('revealedFraction', () => {
     expect(revealedFraction(rect(0, 0), rect(0, 100))).toBe(0)
   })
 })
-

@@ -54,10 +54,20 @@ export function AppShell({ left, main, right, footer }: AppShellProps) {
         ) : null}
       </div>
       {footer ? <footer className="border-t border-line bg-app py-2">{footer}</footer> : null}
-      <Drawer side="left" open={drawer === 'history'} onClose={() => setDrawer(null)} label="History">
+      <Drawer
+        side="left"
+        open={drawer === 'history'}
+        onClose={() => setDrawer(null)}
+        label="History"
+      >
         {left}
       </Drawer>
-      <Drawer side="right" open={drawer === 'trace'} onClose={() => setDrawer(null)} label="Agent trace">
+      <Drawer
+        side="right"
+        open={drawer === 'trace'}
+        onClose={() => setDrawer(null)}
+        label="Agent trace"
+      >
         {right}
       </Drawer>
     </div>

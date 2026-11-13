@@ -10,7 +10,9 @@ export function ChatPage() {
   const [value, setValue] = useState('')
   const health = useHealth()
   const disabledReason =
-    health?.status === 'unreachable' ? 'The API is unreachable — start the backend and try again.' : null
+    health?.status === 'unreachable'
+      ? 'The API is unreachable — start the backend and try again.'
+      : null
 
   const handleSubmit = (question: string) => {
     setValue('')

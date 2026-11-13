@@ -115,9 +115,7 @@ input {
     backdrop-filter: blur(28px) saturate(150%);
     border: 1px solid var(--c-line);
   }
-  @supports not (
-    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
-  ) {
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .glass,
     .glass-strong {
       background: var(--c-surface);
@@ -255,9 +253,7 @@ tr[data-highlight] {
   }
 }
 
-
 /* Zen (focus reading) mode: hide the app chrome behind the full-screen reader. */
 .app-shell[data-zen] > * {
   display: none;
 }
-

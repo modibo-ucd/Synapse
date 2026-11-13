@@ -19,9 +19,7 @@ export function estimateReadingSeconds(markdown: string): number {
 }
 
 export function formatReadingTime(seconds: number): string {
-  return seconds < 60
-    ? `${seconds} sec read`
-    : `${Math.max(1, Math.round(seconds / 60))} min read`
+  return seconds < 60 ? `${seconds} sec read` : `${Math.max(1, Math.round(seconds / 60))} min read`
 }
 
 /**
@@ -33,4 +31,3 @@ export function revealedFraction(card: DOMRect, scroller: DOMRect): number {
   if (card.height <= 0) return 0
   return Math.min(1, Math.max(0, (scroller.bottom - card.top) / card.height))
 }
-

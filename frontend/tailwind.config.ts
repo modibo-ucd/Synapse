@@ -41,8 +41,7 @@ export default {
         display: ['"Fraunces Variable"', ...defaultTheme.fontFamily.serif],
       },
       boxShadow: {
-        float:
-          '0 1px 2px rgb(36 51 65 / 0.06), 0 12px 28px -12px rgb(36 51 65 / 0.22)',
+        float: '0 1px 2px rgb(36 51 65 / 0.06), 0 12px 28px -12px rgb(36 51 65 / 0.22)',
         glass: '0 24px 60px -20px rgb(0 0 0 / 0.45)',
       },
       keyframes: {

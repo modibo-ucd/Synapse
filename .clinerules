@@ -204,7 +204,7 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
 
 # 9. API Contract
 
-- `GET /health` -> always 200: `{"status": "ok", "index": "building|ready|degraded", "llm_configured": bool}`.
+- `GET /health` -> always 200: `{"status": "ok", "index": "building|ready|degraded", "llm_configured": bool, "version": "...", "index_stats": {"files": n, "chunks": n, "embedding_model": "..."}}`.
 - `POST /ask` request: `{"question": "..."}` (1-2000 chars, stripped). Response (HTTP 200):
 
 ```json
@@ -231,6 +231,10 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
     "ambiguity_flags": []
   },
   "retrieval_mode": "hybrid",
+  "retrieval": { "mode": "hybrid", "candidates": 0, "returned": 0, "chunks": [] },
+  "trace": [{ "stage": "retrieve", "status": "done", "duration_ms": 0, "summary": "..." }],
+  "comparison": null,
+  "widgets": null,
   "trace_id": "...",
   "usage": { "tokens_in": 0, "tokens_out": 0 },
   "latency_ms": 0
@@ -239,6 +243,7 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
 
 - Validation failures -> 422 with the standard error shape. LLM failures -> 502/503/504 with the standard error shape.
 - Streaming (P1): `POST /ask/stream` emits `StageEvent`s (SSE format over a streamed POST response) and then the final response. `/ask` stays unchanged and is the graded endpoint.
+- Read-only source endpoints (additive, power the source modal): `GET /api/v1/sources` (list) and `GET /api/v1/sources/{file_name}` (`{file_name, title, drug_name, source_type, markdown, chunks: [{chunk_id, section_path, start, end}]}`) — allowlist-only and traversal-safe. `/docs` serves the OpenAPI UI.
 - The frontend is served from `/` (StaticFiles with SPA fallback); API routes take precedence.
 
 ---
@@ -258,8 +263,10 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
 # 11. Frontend Standards (React + Vite + Tailwind)
 
 - TypeScript `strict`; no `any`. Functional components and hooks. Validate API responses with Zod and infer types.
+- Palette: exactly nine hex values — night `#243341`, alabaster `#f0f2f5`, ocean `#205d96`, steel `#294b6c`, glacial `#b5dbff`, ice `#e0f0ff`, cream `#ffedcf`, champagne `#ffebc9`, sage `#519a76`. Tints/shades come only from `color-mix()` of these with white/black; glass blur only on overlays (header, drawers, source modal).
 - Chat UI: textarea + submit (Enter sends, Shift+Enter newline), loading / error / empty states, example questions (the public evaluation questions), rendered Markdown (`react-markdown` + `remark-gfm` + `rehype-sanitize`), Sources list with file names, ALWAYS-visible disclaimer, review flags shown to the user.
 - P1: trace panel (5 stages with status/duration/details; respects `prefers-reduced-motion`), interactive citation chips (hover, focus and tap preview using `excerpt`), comparison grid, eGFR widget (educational estimate only).
+- Also shipped: reading-time label + `ReadingProgress` bar (rAF-throttled, shown only when the card is taller than the scroller); honest `StageTimeline` (real SSE events only, indeterminate when streaming is unavailable — never simulated); `ZenReader` focus mode (Esc / focus return); source modal with cross-highlighted passages; mobile drawers (glass + blurred scrim, Esc/scrim close, focus return, scroll lock, safe-area); `useVisualViewport` 100dvh + keyboard scroll; haptics (feature-detected, reduced-motion aware, settings toggle).
 - Accessible: semantic HTML, labels, focus management, `aria-live` for answer regions. Stable `data-testid` on interactive elements. Tailwind utilities only; design tokens in `tailwind.config`.
 - Built in the Docker image (`npm ci && npm run build`); the same-origin deployment needs no CORS configuration. Dev uses the Vite proxy.
 

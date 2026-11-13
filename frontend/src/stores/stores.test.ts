@@ -166,4 +166,3 @@ describe('pure helpers', () => {
     expect(compactForStorage(response)).toBe(response)
   })
 })
-

@@ -28,31 +28,34 @@ export function useAskStream(): AskStreamController {
     controllerRef.current?.abort()
   }, [])
 
-  const start = useCallback(async (question: string, handlers: AskStreamHandlers) => {
-    stop()
-    const controller = new AbortController()
-    controllerRef.current = controller
-    try {
-      let response: AskResponse
+  const start = useCallback(
+    async (question: string, handlers: AskStreamHandlers) => {
+      stop()
+      const controller = new AbortController()
+      controllerRef.current = controller
       try {
-        response = await streamAsk(question, handlers.onStage, controller.signal)
-      } catch (streamError) {
-        if (isAbortError(streamError)) throw streamError
-        response = await askQuestion(question, controller.signal)
+        let response: AskResponse
+        try {
+          response = await streamAsk(question, handlers.onStage, controller.signal)
+        } catch (streamError) {
+          if (isAbortError(streamError)) throw streamError
+          response = await askQuestion(question, controller.signal)
+        }
+        handlers.onResult(response)
+      } catch (error) {
+        if (isAbortError(error)) {
+          handlers.onError(new ApiError('aborted', 'The request was cancelled.'))
+        } else if (error instanceof ApiError) {
+          handlers.onError(error)
+        } else {
+          handlers.onError(new ApiError('unknown_error', 'Something went wrong. Please try again.'))
+        }
+      } finally {
+        if (controllerRef.current === controller) controllerRef.current = null
       }
-      handlers.onResult(response)
-    } catch (error) {
-      if (isAbortError(error)) {
-        handlers.onError(new ApiError('aborted', 'The request was cancelled.'))
-      } else if (error instanceof ApiError) {
-        handlers.onError(error)
-      } else {
-        handlers.onError(new ApiError('unknown_error', 'Something went wrong. Please try again.'))
-      }
-    } finally {
-      if (controllerRef.current === controller) controllerRef.current = null
-    }
-  }, [stop])
+    },
+    [stop],
+  )
 
   return { start, stop }
 }

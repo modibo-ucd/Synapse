@@ -110,6 +110,32 @@ flowchart LR
 
 ---
 
+## The UI
+
+A React (Vite + Tailwind) single-page app served by the same container at `/`. It offers:
+
+- A chat feed with the public evaluation questions as examples, rendered Markdown
+  (`react-markdown` + `rehype-sanitize`), and an always-visible medical disclaimer.
+- Interactive citations (`[S1]`) and source badges that open a **source modal** showing the
+  full label with the cited passages cross-highlighted and scrollable prev/next navigation.
+- A trace panel (per-stage durations, retrieved chunks, tool calls, review verdict) and an
+  honest **stream of thought** timeline fed by real `POST /ask/stream` events (never
+  simulated; indeterminate when streaming is unavailable).
+- Reading-time labels and a `ReadingProgress` bar on long answers, a **zen / focus reading**
+  mode, a comparison matrix and an eGFR widget (educational estimate), plus mobile drawers
+  with haptics and safe-area / keyboard handling.
+
+## Limitations (truthful)
+
+- **No conversation memory** — every question is answered independently from the corpus;
+  earlier turns are never sent to the backend.
+- **History stays in this browser** (`localStorage`); questions are still sent to the
+  configured LLM endpoint.
+- **Not medical advice** — answers are grounded strictly in retrieved label text; the model
+  never fills gaps from its own knowledge and says "insufficient evidence" when unsupported.
+- **iOS keyboard behavior** is implemented via the visual viewport and safe-area insets but
+  can only be fully verified on a real device.
+
 ## Project structure
 
 ```text

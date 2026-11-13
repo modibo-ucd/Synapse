@@ -19,7 +19,12 @@ describe('App', () => {
   beforeEach(() => {
     window.localStorage.clear()
     useHistoryStore.setState({ sessions: [], activeSessionId: null })
-    useSettingsStore.setState({ theme: 'system', haptics: true, historyOpen: true, traceOpen: true })
+    useSettingsStore.setState({
+      theme: 'system',
+      haptics: true,
+      historyOpen: true,
+      traceOpen: true,
+    })
     document.documentElement.classList.remove('dark')
   })
 

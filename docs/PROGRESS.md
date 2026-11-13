@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell), C (chat, history, answer cards), D (source badges, citations, modal, cross-highlight), E (reading progress, honest stage timeline, zen mode) and F (mobile drawers, safe areas and haptics) completed 2026-11-13. Next: Phase G (quality gate).
+Tasks 0–14 and 16 completed 2026-11-12. FRONTEND Phases A–G completed 2026-11-13. Remaining: Task 15 (semantic cache + limits), Task 17 (E2E smoke, optional), Tasks 18–19 (presentation + final freeze).
 
 ## Checklist
 
@@ -525,6 +525,41 @@ here).
 
 Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vitest
 run` ✓ (125/125, 29 files), `pytest` ✓ (207).
+
+## Phase G — quality gate — 2026-11-13
+
+Full Section 7 verification (all green):
+
+- `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx prettier --check .` ✓
+  (added `frontend/.prettierignore` for `dist`/`node_modules` and `endOfLine: auto`, then
+  formatted the repo), `npx vitest run` ✓ (125/125, 29 files), `ruff check` ✓, `mypy` ✓
+  (51 files), `pytest` ✓ (207).
+- **Docker graded command** — `docker build -t agent .` and
+  `docker run -p 8000:8000 --env-file .env agent` verified against the running container:
+  `/` serves the built UI (theme-init + viewport-fit), `/docs` 200, `/health` 200
+  (`index: ready`, `llm_configured: true`, 20 chunked files + glossary), `POST /ask` 200
+  (`sources: [dailymed-warfarin.md]`, `verdict: pass`, `retrieval_mode: hybrid`, ~15-20 s),
+  `POST /ask/stream` emits SSE stage events, `GET /api/v1/sources/dailymed-warfarin.md` 200
+  (41 chunks). Fonts are bundled (`/assets/*.woff2`); no third-party host in the HTML/CSS.
+- **Eval harness** — `python -m tests.eval.run` against the container: **17/17 pass**
+  (public 4 + single/multi-document + out-of-scope + unanswerable); p50 15.2 s, p95 34 s.
+  `docs/eval_results.md` refreshed.
+
+Definition of Done walkthrough — all items pass: graded contract unchanged (backend tests
+207, eval unchanged); additive API (sources allowlist / traversal-safe); nine-hex palette +
+contrast test; flash-free persisted theme; ≥1024px docked layout + glass drawers +
+safe-area/keyboard (real-device iOS check listed as a limitation); quota-safe persisted
+history; disclaimer on every answer; source modal cross-highlight + sanitized Markdown;
+honest stage timeline; meaningful reading progress + zen Esc; no third-party requests,
+fonts bundled, no `dangerouslySetInnerHTML`; all tooling green and Docker serving the UI.
+
+- **Secret audit** — `git ls-files` contains no `.env`/`.pdf`/`assignment-pharma.pdf`, no
+  `node_modules`/`dist`/`.venv`, and no key or base-URL literal (only `.env.example` with
+  empty placeholders).
+
+Docs updated: `.clinerules` §9 (additive `/ask` fields, sources endpoints, `/health`
+version/index_stats) and §11 (nine-hex palette, shipped UI features), README (UI features +
+truthful limitations), this file.
 
 ## Known issues
 

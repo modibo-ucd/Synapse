@@ -1,29 +1,29 @@
 # Eval results
 
-- Base URL: http://127.0.0.1:8011
-- Generated: 2026-11-13T12:38:53+00:00
+- Base URL: http://localhost:8000
+- Generated: 2026-11-13T17:55:37+00:00
 - Passed: 17/17
-- latency p50=14630 ms, p95=24499 ms (n=17)
+- latency p50=15221 ms, p95=33961 ms (n=17)
 
 | id | kind | result | verdict | latency_ms | retrieval |
 |----|------|--------|---------|------------|-----------|
-| q1 | answerable | PASS | pass | 18770.091799999136 | hybrid |
-| q2 | answerable | PASS | pass | 20603.713900000002 | hybrid |
-| q3 | answerable | PASS | pass | 14630.292399999234 | hybrid |
-| q4 | answerable | PASS | pass | 12988.53169999893 | hybrid |
-| q5 | answerable | PASS | pass | 12056.232899998577 | hybrid |
-| q6 | answerable | PASS | pass | 12875.576399999773 | hybrid |
-| q7 | answerable | PASS | pass | 17081.237399999736 | hybrid |
-| q8 | answerable | PASS | pass | 10450.444000000061 | hybrid |
-| q9 | answerable | PASS | pass | 13565.697 | hybrid |
-| q10 | answerable | PASS | pass | 8278.947800001333 | hybrid |
-| q11 | answerable | PASS | pass | 27606.294700000944 | hybrid |
-| q12 | answerable | PASS | pass | 22390.509000000748 | hybrid |
-| q13 | answerable | PASS | pass | 15977.203000000372 | hybrid |
-| q14 | out_of_scope | PASS | pass | 1754.3101999999635 | hybrid |
-| q15 | out_of_scope | PASS | pass | 1601.521500000672 | hybrid |
-| q16 | insufficient_evidence | PASS | pass | 23722.412399998575 | hybrid |
-| q17 | insufficient_evidence | PASS | pass | 19120.673800000077 | hybrid |
+| q1 | answerable | PASS | pass | 19053.810806999536 | hybrid |
+| q2 | answerable | PASS | pass | 32272.970890997385 | hybrid |
+| q3 | answerable | PASS | pass | 20406.4206059993 | hybrid |
+| q4 | answerable | PASS | pass | 8989.305704999424 | hybrid |
+| q5 | answerable | PASS | pass | 10243.086900998605 | hybrid |
+| q6 | answerable | PASS | pass | 12670.047221999994 | hybrid |
+| q7 | answerable | PASS | pass | 11037.895493998803 | hybrid |
+| q8 | answerable | PASS | pass | 10810.137479998957 | hybrid |
+| q9 | answerable | PASS | pass | 18059.03350399967 | hybrid |
+| q10 | answerable | PASS | pass | 9662.466541998583 | hybrid |
+| q11 | answerable | PASS | pass | 40714.400959997874 | hybrid |
+| q12 | answerable | PASS | pass | 23346.692037997855 | hybrid |
+| q13 | answerable | PASS | pass | 31019.377198001166 | hybrid |
+| q14 | out_of_scope | PASS | pass | 1647.6366630013217 | hybrid |
+| q15 | out_of_scope | PASS | pass | 1390.983322999091 | hybrid |
+| q16 | insufficient_evidence | PASS | pass | 15221.234535001713 | hybrid |
+| q17 | insufficient_evidence | PASS | pass | 18538.208534999285 | hybrid |
 
 ## Details
 

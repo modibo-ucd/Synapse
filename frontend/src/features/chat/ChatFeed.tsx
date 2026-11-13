@@ -18,7 +18,11 @@ export function ChatFeed({ turns, onSelectExample }: ChatFeedProps) {
   useAutoScroll(scrollerRef, [turns.length, lastStatus])
 
   return (
-    <div ref={scrollerRef} data-testid="chat-feed" className="min-h-0 flex-1 overflow-y-auto scroll-pb-24">
+    <div
+      ref={scrollerRef}
+      data-testid="chat-feed"
+      className="min-h-0 flex-1 scroll-pb-24 overflow-y-auto"
+    >
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
         {turns.length === 0 ? (
           <EmptyState onSelect={onSelectExample} />

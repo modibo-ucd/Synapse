@@ -45,7 +45,13 @@ describe('SourceBadges', () => {
   })
 
   it('renders a badge per source with a type label', () => {
-    render(<SourceBadges sources={['dailymed-warfarin.md']} citations={citations} retrievedChunks={chunks} />)
+    render(
+      <SourceBadges
+        sources={['dailymed-warfarin.md']}
+        citations={citations}
+        retrievedChunks={chunks}
+      />,
+    )
     expect(
       screen.getByRole('button', { name: 'Open source dailymed-warfarin.md' }),
     ).toBeInTheDocument()
@@ -53,7 +59,13 @@ describe('SourceBadges', () => {
   })
 
   it('opens a source view with cited and retrieved chunk ids on click', async () => {
-    render(<SourceBadges sources={['dailymed-warfarin.md']} citations={citations} retrievedChunks={chunks} />)
+    render(
+      <SourceBadges
+        sources={['dailymed-warfarin.md']}
+        citations={citations}
+        retrievedChunks={chunks}
+      />,
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Open source dailymed-warfarin.md' }))
     expect(useUiStore.getState().sourceView).toEqual({
       fileName: 'dailymed-warfarin.md',

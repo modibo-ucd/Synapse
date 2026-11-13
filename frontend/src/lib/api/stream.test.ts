@@ -83,7 +83,10 @@ describe('SSEParser', () => {
     const message = `event: stage\ndata: ${JSON.stringify({ stage: 'plan', status: 'ok', duration_ms: 1, summary: '…' })}\n\n`
     const bytes = encoder.encode(message)
     const index = bytes.indexOf(0xe2) // first byte of the UTF-8 ellipsis
-    const events = [...parser.push(bytes.slice(0, index + 1)), ...parser.push(bytes.slice(index + 1))]
+    const events = [
+      ...parser.push(bytes.slice(0, index + 1)),
+      ...parser.push(bytes.slice(index + 1)),
+    ]
     expect(events).toHaveLength(1)
     expect(events[0]).toMatchObject({ type: 'stage', data: { summary: '…' } })
   })
@@ -116,7 +119,10 @@ describe('SSEParser', () => {
     const message = 'event: error\ndata: {"error":{"code":"provider_error","message":"boom"}}\n\n'
     const events = parser.push(encoder.encode(message))
     expect(events).toHaveLength(1)
-    expect(events[0]).toMatchObject({ type: 'error', data: { code: 'provider_error', message: 'boom' } })
+    expect(events[0]).toMatchObject({
+      type: 'error',
+      data: { code: 'provider_error', message: 'boom' },
+    })
   })
 })
 
@@ -131,7 +137,9 @@ describe('streamAsk', () => {
   })
 
   it('throws the server error event as an ApiError', async () => {
-    mockStreamFetch(['event: error\ndata: {"error":{"code":"provider_error","message":"boom"}}\n\n'])
+    mockStreamFetch([
+      'event: error\ndata: {"error":{"code":"provider_error","message":"boom"}}\n\n',
+    ])
     await expect(streamAsk('q', vi.fn())).rejects.toMatchObject({
       code: 'provider_error',
       message: 'boom',

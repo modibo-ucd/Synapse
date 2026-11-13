@@ -17,7 +17,11 @@ export function ReadingProgress({ cardRef, scrollerRef }: ReadingProgressProps) 
   if (!active) return null
 
   return (
-    <div data-testid="reading-progress" aria-hidden="true" className="sticky top-0 z-10 -mx-5 h-0.5 bg-line">
+    <div
+      data-testid="reading-progress"
+      aria-hidden="true"
+      className="sticky top-0 z-10 -mx-5 h-0.5 bg-line"
+    >
       <div className="h-full origin-left bg-accent" style={{ transform: `scaleX(${fraction})` }} />
     </div>
   )

@@ -180,4 +180,3 @@ export function AnswerCard({ turn, scrollerRef }: AnswerCardProps) {
     </article>
   )
 }
-

@@ -32,6 +32,8 @@ describe('ChatFeed', () => {
     const onSelectExample = vi.fn()
     render(<ChatFeed turns={[]} onSelectExample={onSelectExample} />)
     await userEvent.click(screen.getByTestId('example-ex1'))
-    expect(onSelectExample).toHaveBeenCalledWith('What are the main contraindications for warfarin?')
+    expect(onSelectExample).toHaveBeenCalledWith(
+      'What are the main contraindications for warfarin?',
+    )
   })
 })

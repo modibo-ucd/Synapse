@@ -60,7 +60,7 @@ export function SafeMarkdown({
   } as unknown as Components
 
   return (
-    <div className={className ?? 'prose prose-synapse max-w-none'}>
+    <div className={className ?? 'prose-synapse prose max-w-none'}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[

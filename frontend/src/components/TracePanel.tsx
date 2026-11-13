@@ -58,11 +58,15 @@ function QueryMetrics({
   const { tokens_in: tokensIn, tokens_out: tokensOut } = usage
 
   return (
-    <section data-testid="trace-metrics" aria-label="Query metrics" className="rounded-lg border border-line p-3">
+    <section
+      data-testid="trace-metrics"
+      aria-label="Query metrics"
+      className="rounded-lg border border-line p-3"
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Latest query</p>
       <p className="mt-1 text-sm text-ink">
-        {latencyMs >= 1000 ? `${(latencyMs / 1000).toFixed(1)}s` : `${Math.round(latencyMs)}ms`} total ·{' '}
-        {tokensIn} in · {tokensOut} out tokens
+        {latencyMs >= 1000 ? `${(latencyMs / 1000).toFixed(1)}s` : `${Math.round(latencyMs)}ms`}{' '}
+        total · {tokensIn} in · {tokensOut} out tokens
       </p>
       {durations.length > 0 && (
         <ul className="mt-2 space-y-1">
@@ -142,10 +146,15 @@ function ToolCalls({ calls }: { calls: ToolCallInfo[] }) {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Tools</h3>
       <ul className="mt-2 space-y-1">
         {calls.map((call, index) => (
-          <li key={`${call.tool}-${index}`} className="flex items-center gap-2 text-xs text-ink-muted">
+          <li
+            key={`${call.tool}-${index}`}
+            className="flex items-center gap-2 text-xs text-ink-muted"
+          >
             <span className="font-medium text-ink">{call.tool}</span>
             <span className="truncate">{JSON.stringify(call.arguments)}</span>
-            <span className={`ml-auto rounded px-1 text-[10px] ${call.status === 'ok' ? 'bg-sage/15 text-sage' : 'bg-champagne/50 text-ink'}`}>
+            <span
+              className={`ml-auto rounded px-1 text-[10px] ${call.status === 'ok' ? 'bg-sage/15 text-sage' : 'bg-champagne/50 text-ink'}`}
+            >
               {call.status}
             </span>
           </li>
@@ -158,7 +167,11 @@ function ToolCalls({ calls }: { calls: ToolCallInfo[] }) {
 function ReviewSummary({ review }: { review: ReviewInfo }) {
   const flags = review.unsupported_claims.length + review.ambiguity_flags.length
   return (
-    <section data-testid="trace-review" aria-label="Review summary" className="text-xs text-ink-muted">
+    <section
+      data-testid="trace-review"
+      aria-label="Review summary"
+      className="text-xs text-ink-muted"
+    >
       Verdict: <span className="font-medium text-ink">{review.verdict}</span>
       {flags > 0 && ` · ${flags} flag(s)`}
     </section>
@@ -190,17 +203,25 @@ export function TracePanel({ turn }: TracePanelProps) {
       <IndexStatus health={health} />
       {response ? (
         <>
-          <QueryMetrics trace={response.trace ?? []} latencyMs={response.latency_ms} usage={response.usage} />
+          <QueryMetrics
+            trace={response.trace ?? []}
+            latencyMs={response.latency_ms}
+            usage={response.usage}
+          />
           <RetrievedChunks
             chunks={response.retrieval?.chunks ?? []}
-            citedIds={new Map(response.citations.map((citation) => [citation.chunk_id, citation.id]))}
+            citedIds={
+              new Map(response.citations.map((citation) => [citation.chunk_id, citation.id]))
+            }
             onOpenChunk={openChunk}
           />
           <ToolCalls calls={response.tool_calls} />
           <ReviewSummary review={response.review} />
         </>
       ) : (
-        <p className="text-xs text-ink-muted">No query yet. Ask a question to see the pipeline trace.</p>
+        <p className="text-xs text-ink-muted">
+          No query yet. Ask a question to see the pipeline trace.
+        </p>
       )}
     </div>
   )

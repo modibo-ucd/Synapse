@@ -51,7 +51,7 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
             onChange={(event) => setAge(event.target.value)}
             min={18}
             max={120}
-            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="focus:ring-accent/30 rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-ink-muted">
@@ -60,7 +60,7 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
             data-testid="egfr-sex"
             value={sex}
             onChange={(event) => setSex(event.target.value as Sex)}
-            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="focus:ring-accent/30 rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2"
           >
             <option value="male">Male</option>
             <option value="female">Female</option>
@@ -75,7 +75,7 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
             onChange={(event) => setCreatinine(event.target.value)}
             min={0.1}
             step="0.1"
-            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="focus:ring-accent/30 rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-ink-muted">
@@ -84,7 +84,7 @@ export function EgfrCalculator({ widget, citations }: EgfrCalculatorProps) {
             data-testid="egfr-unit"
             value={unit}
             onChange={(event) => setUnit(event.target.value as CreatinineUnit)}
-            className="rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="focus:ring-accent/30 rounded border border-line px-2 py-1 text-ink focus:border-accent focus:outline-none focus:ring-2"
           >
             <option value="mg_dl">mg/dL</option>
             <option value="umol_l">µmol/L</option>

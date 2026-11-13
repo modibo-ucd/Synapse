@@ -16,7 +16,12 @@ function resetThemeMeta() {
 describe('ThemeToggle', () => {
   beforeEach(() => {
     window.localStorage.clear()
-    useSettingsStore.setState({ theme: 'system', haptics: true, historyOpen: true, traceOpen: true })
+    useSettingsStore.setState({
+      theme: 'system',
+      haptics: true,
+      historyOpen: true,
+      traceOpen: true,
+    })
     document.documentElement.classList.remove('dark')
     resetThemeMeta()
   })

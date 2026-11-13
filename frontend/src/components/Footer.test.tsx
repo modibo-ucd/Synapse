@@ -18,7 +18,9 @@ describe('Footer', () => {
     render(<Footer />)
     expect(await screen.findByText('Index ready')).toBeInTheDocument()
     expect(screen.getByTestId('footer-version')).toHaveTextContent('v0.2.0')
-    expect(screen.getByTestId('footer-history-note')).toHaveTextContent('History stays in this browser')
+    expect(screen.getByTestId('footer-history-note')).toHaveTextContent(
+      'History stays in this browser',
+    )
   })
 
   it('links the version badge to the docs', async () => {

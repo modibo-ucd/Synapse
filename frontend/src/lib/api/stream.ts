@@ -156,7 +156,11 @@ export async function streamAsk(
       for (const event of events) {
         if (event.type === 'result') result = event.data
         else if (event.type === 'error') {
-          throw new ApiError(event.data.code, event.data.message, event.data.request_id ?? undefined)
+          throw new ApiError(
+            event.data.code,
+            event.data.message,
+            event.data.request_id ?? undefined,
+          )
         } else onStage(event.data)
       }
     }

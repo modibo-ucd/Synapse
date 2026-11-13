@@ -35,7 +35,7 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
             placeholder="e.g. contraindications"
-            className="rounded border border-line px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="focus:ring-accent/30 rounded border border-line px-2 py-1 text-xs text-ink focus:border-accent focus:outline-none focus:ring-2"
           />
         </label>
       </div>
@@ -51,11 +51,7 @@ export function ComparisonMatrix({ comparison, citations }: ComparisonMatrixProp
                 Attribute
               </th>
               {comparison.drugs.map((drug) => (
-                <th
-                  key={drug}
-                  scope="col"
-                  className="px-2 py-1 text-left font-semibold text-ink"
-                >
+                <th key={drug} scope="col" className="px-2 py-1 text-left font-semibold text-ink">
                   {drug}
                 </th>
               ))}

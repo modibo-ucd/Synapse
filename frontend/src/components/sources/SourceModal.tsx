@@ -116,7 +116,7 @@ export function SourceModal({ target, onClose }: SourceModalProps) {
       onClick={handleBackdropClick}
       className="source-modal"
     >
-      <div className="glass-strong shadow-glass flex h-full flex-col overflow-hidden rounded-[inherit]">
+      <div className="glass-strong flex h-full flex-col overflow-hidden rounded-[inherit] shadow-glass">
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">

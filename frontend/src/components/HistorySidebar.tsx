@@ -127,7 +127,7 @@ export function HistorySidebar() {
                       </button>
                     )}
                     {editingId !== session.id && (
-                      <span className="flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                      <span className="flex opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                         <button
                           type="button"
                           data-testid={`history-rename-${session.id}`}

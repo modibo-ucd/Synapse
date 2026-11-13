@@ -8,19 +8,7 @@ export interface HighlightRange {
 }
 
 /** Block-level elements that may carry a whole-block highlight. */
-const BLOCKS = new Set([
-  'p',
-  'li',
-  'tr',
-  'pre',
-  'blockquote',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-])
+const BLOCKS = new Set(['p', 'li', 'tr', 'pre', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
 
 /**
  * Marks the smallest block elements whose mdast source offsets overlap any of
@@ -38,8 +26,7 @@ export function rehypeSourceHighlight(options: { ranges: HighlightRange[] }) {
       if (
         node.tagName === 'li' &&
         node.children.some(
-          (child) =>
-            child.type === 'element' && (child.tagName === 'ul' || child.tagName === 'ol'),
+          (child) => child.type === 'element' && (child.tagName === 'ul' || child.tagName === 'ol'),
         )
       ) {
         return

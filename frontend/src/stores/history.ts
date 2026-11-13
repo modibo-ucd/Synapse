@@ -171,8 +171,7 @@ export const useHistoryStore = create<HistoryState>()(
               const isFirst = session.turns.length === 0
               return {
                 ...session,
-                title:
-                  isFirst && !session.titleEdited ? deriveTitle(question) : session.title,
+                title: isFirst && !session.titleEdited ? deriveTitle(question) : session.title,
                 turns: [...session.turns, turn],
                 updatedAt: Date.now(),
               }
@@ -232,4 +231,3 @@ handleQuota = () => {
 handleStorageError = () => {
   useUiStore.setState({ storageWarning: true })
 }
-
