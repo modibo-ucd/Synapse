@@ -1,14 +1,17 @@
-import { useState } from 'react'
-import { Check, Copy } from 'lucide-react'
+import { useRef, useState, type RefObject } from 'react'
+import { Check, Copy, Maximize2 } from 'lucide-react'
 
 import { ComparisonMatrix } from '../../components/ComparisonMatrix'
 import { Disclaimer } from '../../components/Disclaimer'
 import { EgfrCalculator } from '../../components/EgfrCalculator'
+import { ReadingProgress } from '../../components/ReadingProgress'
 import { ReviewNotes } from '../../components/ReviewNotes'
 import { SourceBadges } from '../../components/SourceBadges'
 import { SafeMarkdown } from '../../components/SafeMarkdown'
+import { StageTimeline } from '../../components/StageTimeline'
 import { MEDICAL_DISCLAIMER } from '../../lib/disclaimer'
 import { countWords, estimateReadingSeconds, formatReadingTime } from '../../lib/reading'
+import { setZenTrigger } from '../../lib/zenFocus'
 import { useUiStore } from '../../stores/ui'
 import type { Citation, ReviewVerdict } from '../../types/api'
 import type { Turn } from '../../types/ui'
@@ -65,12 +68,16 @@ function CopyButton({ text }: { text: string }) {
 
 interface AnswerCardProps {
   turn: Turn
+  scrollerRef: RefObject<HTMLElement | null>
 }
 
 /** The assistant message for one turn: answer, widgets, review notes, disclaimer. */
-export function AnswerCard({ turn }: AnswerCardProps) {
+export function AnswerCard({ turn, scrollerRef }: AnswerCardProps) {
+  const cardRef = useRef<HTMLElement | null>(null)
   const setSelectedTurnId = useUiStore((state) => state.setSelectedTurnId)
   const setSourceView = useUiStore((state) => state.setSourceView)
+  const zenTurnId = useUiStore((state) => state.zenTurnId)
+  const setZenTurnId = useUiStore((state) => state.setZenTurnId)
 
   const openCitation = (citation: Citation) => {
     setSourceView({
@@ -83,13 +90,7 @@ export function AnswerCard({ turn }: AnswerCardProps) {
   if (turn.status === 'pending') {
     return (
       <div data-testid="answer-pending" role="status" className="card-float p-5">
-        <div className="flex items-center gap-3 text-sm text-ink-muted">
-          <span
-            aria-hidden="true"
-            className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"
-          />
-          Working… researching and verifying the answer.
-        </div>
+        <StageTimeline turn={turn} />
       </div>
     )
   }
@@ -110,10 +111,12 @@ export function AnswerCard({ turn }: AnswerCardProps) {
 
   return (
     <article
+      ref={cardRef}
       data-testid="answer-card"
       onClick={() => setSelectedTurnId(turn.id)}
       className="card-float animate-fade-up p-5"
     >
+      <ReadingProgress cardRef={cardRef} scrollerRef={scrollerRef} />
       <header className="flex items-center gap-2">
         <span className="font-display text-base font-semibold text-ink">Synapse</span>
         <span
@@ -129,9 +132,26 @@ export function AnswerCard({ turn }: AnswerCardProps) {
               {formatReadingTime(estimateReadingSeconds(response.answer))}
             </span>
           )}
+          <button
+            type="button"
+            data-testid="zen-toggle"
+            aria-label="Focus reading mode"
+            aria-pressed={zenTurnId === turn.id}
+            onClick={(event) => {
+              setZenTrigger(event.currentTarget)
+              setZenTurnId(zenTurnId === turn.id ? null : turn.id)
+            }}
+            className="rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-accent-soft hover:text-accent"
+          >
+            <Maximize2 className="h-4 w-4" aria-hidden="true" />
+          </button>
           <CopyButton text={response.answer} />
         </span>
       </header>
+
+      <div className="mt-2">
+        <StageTimeline turn={turn} />
+      </div>
 
       <div className="mt-3">
         <SafeMarkdown citations={response.citations} onOpenCitation={openCitation}>
@@ -160,3 +180,4 @@ export function AnswerCard({ turn }: AnswerCardProps) {
     </article>
   )
 }
+

@@ -23,3 +23,14 @@ export function formatReadingTime(seconds: number): string {
     ? `${seconds} sec read`
     : `${Math.max(1, Math.round(seconds / 60))} min read`
 }
+
+/**
+ * Fraction (0..1) of the card revealed above the scroller's bottom edge. Both
+ * rects are viewport-relative (from `getBoundingClientRect`); the scroller's
+ * bottom edge is the fixed reference while the card's top scrolls past it.
+ */
+export function revealedFraction(card: DOMRect, scroller: DOMRect): number {
+  if (card.height <= 0) return 0
+  return Math.min(1, Math.max(0, (scroller.bottom - card.top) / card.height))
+}
+

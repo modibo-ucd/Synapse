@@ -1,9 +1,12 @@
 import { render, screen } from '@testing-library/react'
+import type { RefObject } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import type { AskResponse } from '../../types/api'
 import type { Turn } from '../../types/ui'
 import { AnswerCard } from './AnswerCard'
+
+const noScroller: RefObject<HTMLElement | null> = { current: null }
 
 function makeResponse(overrides: Partial<AskResponse> = {}): AskResponse {
   return {
@@ -21,22 +24,18 @@ function makeResponse(overrides: Partial<AskResponse> = {}): AskResponse {
   }
 }
 
-function makeTurn(
-  status: Turn['status'],
-  response?: AskResponse,
-  error?: string,
-): Turn {
+function makeTurn(status: Turn['status'], response?: AskResponse, error?: string): Turn {
   return { id: 'turn-1', question: 'q?', createdAt: Date.now(), status, response, error }
 }
 
 describe('AnswerCard', () => {
   it('shows the medical disclaimer in every answer', () => {
-    render(<AnswerCard turn={makeTurn('done', makeResponse())} />)
+    render(<AnswerCard turn={makeTurn('done', makeResponse())} scrollerRef={noScroller} />)
     expect(screen.getByTestId('medical-disclaimer')).toHaveTextContent(/not medical advice/i)
   })
 
   it('labels a pass verdict as "Grounding check passed"', () => {
-    render(<AnswerCard turn={makeTurn('done', makeResponse())} />)
+    render(<AnswerCard turn={makeTurn('done', makeResponse())} scrollerRef={noScroller} />)
     expect(screen.getByTestId('grounding-chip')).toHaveTextContent('Grounding check passed')
   })
 
@@ -49,6 +48,7 @@ describe('AnswerCard', () => {
             review: { verdict: 'revise', unsupported_claims: ['claim'], ambiguity_flags: [] },
           }),
         )}
+        scrollerRef={noScroller}
       />,
     )
     expect(screen.getByTestId('grounding-chip')).toHaveTextContent('Review notes')
@@ -56,14 +56,19 @@ describe('AnswerCard', () => {
   })
 
   it('shows the reading time only for long answers', () => {
-    render(<AnswerCard turn={makeTurn('done', makeResponse({ answer: 'word '.repeat(70) }))} />)
+    render(
+      <AnswerCard
+        turn={makeTurn('done', makeResponse({ answer: 'word '.repeat(70) }))}
+        scrollerRef={noScroller}
+      />,
+    )
     expect(screen.getByTestId('reading-time')).toBeInTheDocument()
   })
 
   it('renders the pending and error states', () => {
-    const { rerender } = render(<AnswerCard turn={makeTurn('pending')} />)
+    const { rerender } = render(<AnswerCard turn={makeTurn('pending')} scrollerRef={noScroller} />)
     expect(screen.getByTestId('answer-pending')).toBeInTheDocument()
-    rerender(<AnswerCard turn={makeTurn('error', undefined, 'boom')} />)
+    rerender(<AnswerCard turn={makeTurn('error', undefined, 'boom')} scrollerRef={noScroller} />)
     expect(screen.getByTestId('answer-error')).toHaveTextContent('boom')
   })
 })

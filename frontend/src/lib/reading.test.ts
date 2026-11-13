@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
-import { countWords, estimateReadingSeconds, formatReadingTime } from './reading'
+import { countWords, estimateReadingSeconds, formatReadingTime, revealedFraction } from './reading'
+
+function rect(top: number, height: number): DOMRect {
+  return {
+    x: 0,
+    y: top,
+    top,
+    left: 0,
+    right: 0,
+    bottom: top + height,
+    width: 0,
+    height,
+    toJSON: () => ({}),
+  } as DOMRect
+}
 
 describe('reading helpers', () => {
   it('counts words and ignores markdown syntax', () => {
@@ -20,3 +34,20 @@ describe('reading helpers', () => {
     expect(formatReadingTime(120)).toBe('2 min read')
   })
 })
+
+describe('revealedFraction', () => {
+  it('is 0 while the card is still below the scroller bottom', () => {
+    expect(revealedFraction(rect(200, 500), rect(0, 100))).toBe(0)
+  })
+
+  it('grows as the card scrolls up and clamps to 1', () => {
+    expect(revealedFraction(rect(0, 500), rect(0, 100))).toBeCloseTo(0.2)
+    expect(revealedFraction(rect(-400, 500), rect(0, 100))).toBe(1)
+    expect(revealedFraction(rect(-1000, 500), rect(0, 100))).toBe(1)
+  })
+
+  it('returns 0 for a zero-height card', () => {
+    expect(revealedFraction(rect(0, 0), rect(0, 100))).toBe(0)
+  })
+})
+

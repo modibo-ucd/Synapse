@@ -26,7 +26,7 @@ export function ChatFeed({ turns, onSelectExample }: ChatFeedProps) {
           turns.map((turn) => (
             <div key={turn.id} className="space-y-4">
               <UserBubble text={turn.question} />
-              <AnswerCard turn={turn} />
+              <AnswerCard turn={turn} scrollerRef={scrollerRef} />
             </div>
           ))
         )}

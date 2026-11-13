@@ -23,6 +23,7 @@ export function AppShell({ left, main, right, footer }: AppShellProps) {
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const drawer = useUiStore((state) => state.drawer)
   const setDrawer = useUiStore((state) => state.setDrawer)
+  const zenTurnId = useUiStore((state) => state.zenTurnId)
 
   useEffect(() => {
     if (isDesktop && drawer) {
@@ -31,7 +32,7 @@ export function AppShell({ left, main, right, footer }: AppShellProps) {
   }, [isDesktop, drawer, setDrawer])
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-zen={zenTurnId ? '' : undefined}>
       <Header />
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
         {left ? (

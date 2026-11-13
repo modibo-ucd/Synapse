@@ -18,11 +18,11 @@ export class ApiError extends Error {
   }
 }
 
-function isAbortError(error: unknown): boolean {
+export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
-function parseApiError(payload: unknown): ApiError {
+export function parseApiError(payload: unknown): ApiError {
   const parsed = ApiErrorPayloadSchema.safeParse(payload)
   if (parsed.success) {
     return new ApiError(

@@ -49,3 +49,11 @@ if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = () => {}
 }
 
+
+// jsdom may lack requestAnimationFrame; polyfill so rAF-throttled hooks run
+// under test (guarded so a native implementation is left untouched).
+if (typeof window.requestAnimationFrame !== 'function') {
+  window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(Date.now()), 16)
+  window.cancelAnimationFrame = (handle) => window.clearTimeout(handle)
+}
+

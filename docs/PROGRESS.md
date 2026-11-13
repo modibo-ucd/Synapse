@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell), C (chat, history, answer cards) and D (source badges, citations, modal, cross-highlight) completed 2026-11-13. Next: Phase E.
+Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell), C (chat, history, answer cards), D (source badges, citations, modal, cross-highlight) and E (reading progress, honest stage timeline, zen mode) completed 2026-11-13. Next: Phase F (mobile polish).
 
 ## Checklist
 
@@ -470,6 +470,36 @@ themes"): sidebars and drawers now follow the theme toggle.
 
 Checks: `npm run build` ✓, `npm run lint` ✓, `npx vitest run` ✓ (80/80),
 `pytest` ✓ (207).
+## Phase E — reading progress, honest stage timeline, zen mode — 2026-11-13
+
+- **Reading progress** — `lib/reading.ts` gained `revealedFraction` (pure, tested);
+  `hooks/useReadingProgress` (rAF-throttled scroll + ResizeObserver; `active` only when
+  the card is taller than the scroller); `components/ReadingProgress` (2px sticky bar,
+  `scaleX`, hidden when inactive). The reading-time label was already in `AnswerCard`.
+- **Streaming** — `/ask/stream` already existed (backend). Added `lib/api/stream.ts`
+  (`SSEParser` + `streamAsk` with a 10 s stall guard) and `hooks/useAskStream` (silent
+  one-shot fallback to `/ask`; a user abort surfaces as an `aborted` error). The parser
+  maps the backend's `ok` status to the UI's `done` and skips comments / malformed JSON.
+  `useChat` now streams `liveStages` into the turn; Stop stays wired to abort. `/ask` is
+  unchanged.
+- **StageTimeline** — "Stream of Thought" renders only real events: an indeterminate
+  "Working…" before the first event (or when streaming is unavailable), then the five
+  stages with friendly labels; collapses to "Answered in X | N stages | M sources" when
+  done (re-expandable; collapse preference remembered per turn). Never simulates steps.
+- **Zen mode** — `components/ZenReader` (full-screen `max-w-[68ch]` reader, Esc + "Exit
+  focus" button, focus returned to the toggle via `lib/zenFocus`), `AppShell[data-zen]`
+  hides the chrome behind it, and a per-answer zen toggle in `AnswerCard`.
+- **Tests** — SSE parser (split chunks, multi-byte across chunks, comments, malformed
+  JSON, multi-line data, routing), `streamAsk`, `useAskStream` fallback/abort, and
+  `StageTimeline` / `ReadingProgress` / `ZenReader` component tests. `test/setup.ts`
+  gained a guarded `requestAnimationFrame` polyfill for jsdom.
+
+Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vitest run` ✓
+(120/120, 27 files), `pytest` ✓ (207). Prettier check is deferred to Phase G (the whole
+repo is CRLF while prettier defaults to LF — a pre-existing condition, not introduced
+here).
+
+
 ## Known issues
 
 - (Resolved Task 11) `assignment-pharma.pdf` was committed (`ec2f3b3`, `98613df`) and

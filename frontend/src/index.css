@@ -253,3 +253,9 @@ tr[data-highlight] {
   }
 }
 
+
+/* Zen (focus reading) mode: hide the app chrome behind the full-screen reader. */
+.app-shell[data-zen] > * {
+  display: none;
+}
+
