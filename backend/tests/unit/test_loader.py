@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from app.core.errors import ConfigurationError
-from app.retrieval.loader import load_documents, load_glossary
+from app.retrieval.loader import load_documents, load_glossary, load_source_texts
 
 
 def _write(path: Path, text: str) -> Path:
@@ -61,3 +61,14 @@ def test_missing_directory_is_empty(tmp_path: Path) -> None:
     missing = tmp_path / "does-not-exist"
     assert load_documents(missing) == []
     assert load_glossary(missing) == []
+
+
+def test_load_source_texts_includes_glossary_and_normalizes_crlf(tmp_path: Path) -> None:
+    (tmp_path / "dailymed-warfarin.md").write_bytes(
+        b"# Warfarin (DailyMed label)\r\n\r\n## 4 CONTRAINDICATIONS\r\n\r\nBleeding.\r\n"
+    )
+    (tmp_path / "GLOSSARY.md").write_bytes(b"# Pharmacology Glossary\r\n\r\n- **INR**: ratio.\r\n")
+    texts = load_source_texts(tmp_path)
+    assert set(texts) == {"dailymed-warfarin.md", "GLOSSARY.md"}
+    assert "\r" not in texts["dailymed-warfarin.md"]
+    assert "\r" not in texts["GLOSSARY.md"]

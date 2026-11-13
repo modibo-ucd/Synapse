@@ -21,3 +21,14 @@ def strip_control_characters(text: str) -> str:
 def sanitize_question(text: str) -> str:
     """Strip control characters and collapse all whitespace runs to single spaces."""
     return " ".join(strip_control_characters(text).split())
+
+
+def utf16_offset(text: str, char_index: int) -> int:
+    """Convert a character index into a UTF-16 code-unit offset.
+
+    JavaScript string indices count UTF-16 code units, so a non-BMP character
+    (e.g. an emoji) occupies two units. This maps a Python character offset to
+    the matching JS index. It is computed once per boundary, never per character
+    in a loop over the text.
+    """
+    return len(text[:char_index].encode("utf-16-le")) // 2

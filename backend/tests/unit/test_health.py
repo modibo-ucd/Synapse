@@ -46,3 +46,21 @@ def test_health_with_llm_config(monkeypatch, tmp_path) -> None:
     assert body["index"] in {"building", "ready", "degraded"}
     assert body["llm_configured"] is True
 
+
+def test_health_reports_version_and_index_stats_shape(monkeypatch, tmp_path) -> None:
+    for name in OPENAI_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    settings = Settings(
+        _env_file=None,
+        corpus_dir=str(tmp_path / "corpus"),
+        cache_dir=str(tmp_path / "cache"),
+    )
+    app = create_app(settings)
+    with TestClient(app) as client:
+        resp = client.get("/health")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["version"] == "0.1.0"
+    # An empty corpus yields no chunks, so index_stats is None.
+    assert body["index_stats"] is None
+

@@ -54,7 +54,7 @@ class Retriever:
         selected, _, used_tokens = self._select(ordered, named_drugs)
 
         mode: RetrievalMode = "hybrid" if self._dense_available else "bm25_only"
-        return Evidence(chunks=selected, retrieval_mode=mode)
+        return Evidence(chunks=selected, retrieval_mode=mode, candidates=len(ordered))
 
     def _select(
         self, ordered: list[EvidenceChunk], named_drugs: set[str]

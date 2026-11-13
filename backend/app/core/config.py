@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     rate_limit_per_min: int = 0
     semantic_cache_enabled: bool = False
     log_level: str = "INFO"
+    app_version: str = "0.1.0"
 
     @field_validator("*", mode="before")
     @classmethod

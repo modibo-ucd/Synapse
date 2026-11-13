@@ -57,3 +57,24 @@ def test_api_starts_without_dist(monkeypatch, tmp_path) -> None:
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/").status_code == 404
+
+
+def test_spa_fallback_does_not_capture_api_or_missing_assets(monkeypatch, tmp_path) -> None:
+    dist = tmp_path / "dist"
+    _write_dist(dist)
+    monkeypatch.setattr(main_module, "FRONTEND_DIST_DIR", dist)
+    app = create_app(_settings(tmp_path))
+
+    with TestClient(app) as client:
+        # Reserved prefixes and fixed routes must not fall through to index.html.
+        assert client.get("/api/unknown").status_code == 404
+        assert client.get("/ask/nope").status_code == 404
+        assert client.get("/docs/whatever").status_code == 404
+        assert client.get("/missing.js").status_code == 404
+        # Navigation-like deep routes still serve the SPA.
+        assert client.get("/some/spa/route").status_code == 200
+        assert client.get("/some/spa/route").text == "<html><body>spa</body></html>"
+        # Fixed routes still work.
+        assert client.get("/health").status_code == 200
+        assert client.get("/openapi.json").status_code == 200
+        assert client.get("/docs").status_code == 200

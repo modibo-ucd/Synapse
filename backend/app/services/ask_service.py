@@ -27,7 +27,15 @@ from app.providers import openai as openai_providers
 from app.providers.protocols import LLMClient
 from app.providers.protocols import ProviderError as ProviderProtocolError
 from app.retrieval.index_manager import IndexManager
-from app.schemas.domain import AskResponse
+from app.schemas.domain import (
+    AskResponse,
+    Citation,
+    Evidence,
+    RetrievalInfo,
+    RetrievedChunkInfo,
+    StageTraceInfo,
+    StageTraceStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +49,58 @@ def translate_provider_error(exc: ProviderProtocolError) -> AppError:
     if exc.code == "provider_timeout":
         return ProviderTimeoutError(exc.message)
     return ProviderError(exc.message)
+
+
+def _trim_excerpt(text: str, limit: int = 300) -> str:
+    """Return ``text`` truncated to at most ``limit`` chars on a word boundary."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    window = text[:limit]
+    space = window.rfind(" ")
+    if space > 0:
+        return window[:space].rstrip() + "…"
+    return window.rstrip() + "…"
+
+
+def _build_retrieval_info(evidence: Evidence, citations: list[Citation]) -> RetrievalInfo:
+    """Build the response retrieval summary from Stage 2 evidence + citations."""
+    cited_ids = {citation.chunk_id for citation in citations}
+    chunks = [
+        RetrievedChunkInfo(
+            chunk_id=chunk.chunk_id,
+            source_file=chunk.source_file,
+            section_path=chunk.section_path,
+            excerpt=_trim_excerpt(chunk.text),
+            dense_rank=chunk.dense_rank,
+            bm25_rank=chunk.bm25_rank,
+            fused_score=chunk.fused_score,
+            cited=chunk.chunk_id in cited_ids,
+        )
+        for chunk in evidence.chunks
+    ]
+    # Cited chunks first, then the rest, preserving the ranked order within each.
+    chunks.sort(key=lambda info: not info.cited)
+    return RetrievalInfo(
+        mode=evidence.retrieval_mode,
+        candidates=evidence.candidates,
+        returned=len(chunks),
+        chunks=chunks[:12],
+    )
+
+
+def _build_trace_info(events: list[StageEvent]) -> list[StageTraceInfo]:
+    """Build the response stage trace from the recorded StageEvents."""
+    status_map: dict[str, StageTraceStatus] = {"ok": "done", "skipped": "skipped"}
+    return [
+        StageTraceInfo(
+            stage=event.stage,
+            status=status_map[event.status],
+            duration_ms=round(event.duration_ms),
+            summary=event.summary or None,
+        )
+        for event in events
+    ]
 
 
 class AskService:
@@ -96,6 +156,13 @@ class AskService:
         except ProviderProtocolError as exc:
             raise translate_provider_error(exc) from exc
         self._last_events = pipeline.events
+        evidence = pipeline.evidence or Evidence()
+        response = response.model_copy(
+            update={
+                "retrieval": _build_retrieval_info(evidence, response.citations),
+                "trace": _build_trace_info(pipeline.events),
+            }
+        )
         latency_ms = (time.perf_counter() - start) * 1000
         logger.info(
             "ask_completed",

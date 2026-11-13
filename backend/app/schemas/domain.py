@@ -49,6 +49,8 @@ class Chunk(BaseModel):
     embedding_text: str
     index: int
     token_count: int
+    start_char: int = 0
+    end_char: int = 0
 
 
 PlanComplexity = Literal["simple", "multi_hop"]
@@ -101,6 +103,7 @@ class Evidence(BaseModel):
 
     chunks: list[EvidenceChunk] = Field(default_factory=list)
     retrieval_mode: RetrievalMode = "hybrid"
+    candidates: int = 0
 
 
 class Claim(BaseModel):
@@ -224,6 +227,47 @@ class AnswerAssembly(BaseModel):
     widgets: list[EgfrWidget] | None = None
 
 
+class RetrievedChunkInfo(BaseModel):
+    """One retrieved chunk reported in the /ask response retrieval info."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    chunk_id: str
+    source_file: str
+    section_path: str
+    excerpt: str
+    dense_rank: int | None = None
+    bm25_rank: int | None = None
+    fused_score: float = 0.0
+    cited: bool = False
+
+
+class RetrievalInfo(BaseModel):
+    """Retrieval summary reported in the /ask response."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    mode: RetrievalMode
+    candidates: int = 0
+    returned: int = 0
+    chunks: list[RetrievedChunkInfo] = Field(default_factory=list)
+
+
+StageName = Literal["plan", "retrieve", "tools", "review", "answer"]
+StageTraceStatus = Literal["done", "skipped", "error"]
+
+
+class StageTraceInfo(BaseModel):
+    """One completed pipeline stage reported in the /ask response."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    stage: StageName
+    status: StageTraceStatus
+    duration_ms: int | None = None
+    summary: str | None = None
+
+
 class AskResponse(BaseModel):
     """The full POST /ask response (Section 9 contract)."""
 
@@ -237,6 +281,8 @@ class AskResponse(BaseModel):
     tool_calls: list[ToolCallRecord] = Field(default_factory=list)
     review: Review
     retrieval_mode: RetrievalMode
+    retrieval: RetrievalInfo | None = None
+    trace: list[StageTraceInfo] | None = None
     trace_id: str
     usage: Usage
     latency_ms: float

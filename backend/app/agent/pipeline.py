@@ -51,10 +51,15 @@ class Pipeline:
         self._usage = usage
         self._timeout_s = timeout_s
         self._events: list[StageEvent] = []
+        self._evidence: Evidence | None = None
 
     @property
     def events(self) -> list[StageEvent]:
         return list(self._events)
+
+    @property
+    def evidence(self) -> Evidence | None:
+        return self._evidence
 
     async def run(
         self,
@@ -75,6 +80,7 @@ class Pipeline:
                 f"request timed out after {self._timeout_s:.0f}s"
             ) from exc
         self._events = context.events
+        self._evidence = evidence
         latency_ms = (time.perf_counter() - start) * 1000
 
         return AskResponse(

@@ -13,12 +13,14 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.ask import router as ask_router
 from app.api.health import router as health_router
+from app.api.sources import router as sources_router
 from app.core.config import Settings, get_settings
-from app.core.errors import register_exception_handlers
+from app.core.errors import NotFoundError, register_exception_handlers
 from app.core.logging import configure_logging, request_id_var
 from app.providers import openai as openai_providers
 from app.retrieval.index_manager import IndexManager
 from app.services.ask_service import AskService
+from app.services.source_service import SourceService
 
 # Basic hardening headers applied to every response. The CSP allows only the
 # built Vite bundle: same-origin scripts/styles/fonts/images, no inline script,
@@ -55,6 +57,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     index_manager.start()
     app.state.index_manager = index_manager
     app.state.ask_service = AskService(settings, index_manager)
+    app.state.source_service = SourceService(settings)
     app.state.index_status = "building"
     try:
         yield
@@ -64,13 +67,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 FRONTEND_DIST_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
+# Path prefixes the SPA fallback must never capture: API, docs, and fixed routes.
+_SPA_RESERVED_FIRST_SEGMENTS = frozenset(
+    {"health", "ask", "docs", "redoc", "openapi.json", "api"}
+)
+
+
+def _is_reserved_path(full_path: str) -> bool:
+    """True when the SPA fallback must 404 instead of serving ``index.html``."""
+    if not full_path:
+        return False
+    return full_path.split("/", 1)[0] in _SPA_RESERVED_FIRST_SEGMENTS
+
+
+def _has_extension(full_path: str) -> bool:
+    """True when the last path segment looks like a file (contains a dot)."""
+    return "." in full_path.rsplit("/", 1)[-1]
+
 
 def mount_frontend(app: FastAPI) -> None:
     """Serve the built React UI at / with an SPA fallback when ``dist`` exists.
 
-    Registered after the API routers so /health, /ask and the docs routes keep
-    precedence. When the build output is absent (local dev) this is a no-op and
-    the API still starts normally.
+    Registered after the API routers so /health, /ask, /api/* and the docs routes
+    keep precedence. When the build output is absent (local dev) this is a no-op
+    and the API still starts normally.
     """
     dist_dir = FRONTEND_DIST_DIR
     index_path = dist_dir / "index.html"
@@ -85,10 +105,14 @@ def mount_frontend(app: FastAPI) -> None:
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(full_path: str) -> FileResponse:
+        if _is_reserved_path(full_path):
+            raise NotFoundError("Not found.")
         if full_path:
             candidate = (dist_resolved / full_path).resolve()
             if candidate.is_relative_to(dist_resolved) and candidate.is_file():
                 return FileResponse(candidate)
+            if _has_extension(full_path):
+                raise NotFoundError("Not found.")
         return FileResponse(index_path)
 
 
@@ -99,6 +123,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Synapse", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.index_status = "building"
+    app.state.source_service = None
 
     @app.middleware("http")
     async def request_id_middleware(
@@ -124,6 +149,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(ask_router)
+    app.include_router(sources_router)
     mount_frontend(app)
     return app
 

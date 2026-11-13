@@ -75,3 +75,15 @@ def load_glossary(corpus_dir: Path) -> list[GlossaryEntry]:
     if not path.is_file():
         return []
     return parse_glossary(_read_text(path))
+
+
+def load_source_texts(corpus_dir: Path) -> dict[str, str]:
+    """Return the normalized text of every corpus .md file, including GLOSSARY.md.
+
+    This is the read-only text registry served by the source-document endpoints:
+    the chunk spans computed by the chunker are character offsets into exactly
+    these strings.
+    """
+    if not corpus_dir.is_dir():
+        return {}
+    return {path.name: _read_text(path) for path in sorted(corpus_dir.glob("*.md"))}

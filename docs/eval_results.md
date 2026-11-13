@@ -1,29 +1,29 @@
 # Eval results
 
-- Base URL: http://localhost:8000
-- Generated: 2026-11-12T23:02:52+00:00
-- Passed: 16/17
-- latency p50=13089 ms, p95=30629 ms (n=17)
+- Base URL: http://127.0.0.1:8011
+- Generated: 2026-11-13T12:38:53+00:00
+- Passed: 17/17
+- latency p50=14630 ms, p95=24499 ms (n=17)
 
 | id | kind | result | verdict | latency_ms | retrieval |
 |----|------|--------|---------|------------|-----------|
-| q1 | answerable | PASS | pass | 13505.603694000456 | hybrid |
-| q2 | answerable | PASS | pass | 22957.146838998597 | hybrid |
-| q3 | answerable | PASS | pass | 23368.637755000236 | hybrid |
-| q4 | answerable | PASS | pass | 8661.312569000074 | hybrid |
-| q5 | answerable | PASS | pass | 9398.875834000137 | hybrid |
-| q6 | answerable | PASS | pass | 12042.09352900034 | hybrid |
-| q7 | answerable | PASS | pass | 12435.690604999763 | hybrid |
-| q8 | answerable | PASS | pass | 13088.753202999214 | hybrid |
-| q9 | answerable | PASS | pass | 13644.737188998988 | hybrid |
-| q10 | answerable | PASS | pass | 7378.698717999214 | hybrid |
-| q11 | answerable | PASS | pass | 32104.258966999623 | hybrid |
-| q12 | answerable | FAIL | pass | 30259.85679600126 | hybrid |
-| q13 | answerable | PASS | pass | 19458.374015999652 | hybrid |
-| q14 | out_of_scope | PASS | pass | 1099.0578639994055 | hybrid |
-| q15 | out_of_scope | PASS | pass | 1358.5519730004307 | hybrid |
-| q16 | insufficient_evidence | PASS | pass | 11265.393398000015 | hybrid |
-| q17 | insufficient_evidence | PASS | pass | 22602.23532499913 | hybrid |
+| q1 | answerable | PASS | pass | 18770.091799999136 | hybrid |
+| q2 | answerable | PASS | pass | 20603.713900000002 | hybrid |
+| q3 | answerable | PASS | pass | 14630.292399999234 | hybrid |
+| q4 | answerable | PASS | pass | 12988.53169999893 | hybrid |
+| q5 | answerable | PASS | pass | 12056.232899998577 | hybrid |
+| q6 | answerable | PASS | pass | 12875.576399999773 | hybrid |
+| q7 | answerable | PASS | pass | 17081.237399999736 | hybrid |
+| q8 | answerable | PASS | pass | 10450.444000000061 | hybrid |
+| q9 | answerable | PASS | pass | 13565.697 | hybrid |
+| q10 | answerable | PASS | pass | 8278.947800001333 | hybrid |
+| q11 | answerable | PASS | pass | 27606.294700000944 | hybrid |
+| q12 | answerable | PASS | pass | 22390.509000000748 | hybrid |
+| q13 | answerable | PASS | pass | 15977.203000000372 | hybrid |
+| q14 | out_of_scope | PASS | pass | 1754.3101999999635 | hybrid |
+| q15 | out_of_scope | PASS | pass | 1601.521500000672 | hybrid |
+| q16 | insufficient_evidence | PASS | pass | 23722.412399998575 | hybrid |
+| q17 | insufficient_evidence | PASS | pass | 19120.673800000077 | hybrid |
 
 ## Details
 
@@ -154,11 +154,10 @@
 - Must include: bleeding, monitor
 - PASS expected_files_in_sources
 - PASS file_names_in_answer
-- FAIL facts_present
+- PASS facts_present
 - PASS disclaimer_present
 - PASS no_unsupported_flags
 - PASS latency_ok
-- Missing (missing_facts): bleeding
 
 ### q13 — What drugs increase the risk of myopathy and rhabdomyolysis when taken with atorvastatin?
 

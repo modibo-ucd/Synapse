@@ -58,6 +58,13 @@ class RateLimitError(AppError):
     status_code = 429
 
 
+class NotFoundError(AppError):
+    """A requested resource (e.g. a source file) does not exist."""
+
+    code = "not_found"
+    status_code = 404
+
+
 class AgentError(AppError):
     """The agent could not produce a valid stage output after a repair attempt."""
 

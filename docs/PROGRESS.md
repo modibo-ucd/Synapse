@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. Next: Tasks 15/17.
+Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phase A (backend API) completed 2026-11-13. Next: FRONTEND Phase B / Tasks 15/17.
 
 ## Checklist
 
@@ -320,6 +320,31 @@ Checks: `ruff` ✓, `mypy --strict` (48 files) ✓, `pytest` (194) ✓, frontend
 verified: `/health` 200 (index ready), `/ask` 200 grounded with disclaimer, security
 headers present, non-root (uid 10001); invalid-key + quoted-values `.env` → `/health`
 200 (index `degraded`), `/ask` clean 503 `configuration_error`.
+
+## FRONTEND Phase A (backend API) — 2026-11-13
+
+Additive, non-breaking backend work per `docs/FRONTEND_SPEC.md`:
+
+- **Chunk spans** — `Chunk.start_char`/`end_char` (char offsets into the
+  loader-normalized text) tracked through the chunker; half-open, may overlap,
+  exclude the repeated table header; chunk text/ids unchanged.
+- **UTF-16** — `core/text.utf16_offset` maps char offsets to JS code-unit
+  offsets (non-BMP safe), applied once per boundary in the sources endpoint.
+- **`/ask` additions** — optional `retrieval` (candidates/returned/cited chunks)
+  and `trace` (5 stages, `done|skipped`) built in `ask_service` from `Evidence`
+  + `StageEvent`s; `Evidence.candidates` and `Pipeline.evidence` plumbed through.
+- **`/health` additions** — `version` (setting `APP_VERSION`, default `0.1.0`)
+  and `index_stats` (`{files, chunks, embedding_model}` | None); still 200 always.
+- **Sources endpoints** — `GET /api/v1/sources` + `/{file_name}` via a
+  startup-built allowlist registry (`SourceService`); strict file-name
+  validation, `NotFoundError` 404 in the standard shape, `ETag`/304 +
+  `Cache-Control`; works while the index is still building.
+- **Static serving** — SPA fallback 404s for `/api/*`, `/ask*`, `/health`,
+  `/docs`, `/redoc`, `/openapi.json` and missing assets with an extension.
+
+Checks: `ruff` ✓, `mypy --strict` (51 files) ✓, `pytest` (207) ✓. Eval re-run
+(2026-11-13): **17/17** (p50 14.6s, p95 24.5s) — the previously flaky q12
+"bleeding" substring now matches; no regression from the additive changes.
 
 ## Known issues
 

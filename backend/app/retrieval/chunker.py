@@ -39,15 +39,32 @@ def count_tokens(text: str, chars_per_token: float = CHARS_PER_TOKEN) -> int:
 
 
 @dataclass(frozen=True)
+class _Line:
+    """One source line with its character offsets into the normalized text."""
+
+    text: str
+    start: int
+    end: int
+
+
+@dataclass(frozen=True)
 class _Block:
     """An atomic run of non-blank lines: either prose or a table."""
 
-    lines: tuple[str, ...]
+    lines: tuple[_Line, ...]
     is_table: bool
 
     @property
+    def start(self) -> int:
+        return self.lines[0].start
+
+    @property
+    def end(self) -> int:
+        return self.lines[-1].end
+
+    @property
     def text(self) -> str:
-        return "\n".join(self.lines)
+        return "\n".join(line.text for line in self.lines)
 
 
 @dataclass(frozen=True)
@@ -56,6 +73,8 @@ class _Unit:
 
     text: str
     tokens: int
+    start: int
+    end: int
 
 
 @dataclass
@@ -64,18 +83,37 @@ class _Section:
 
     path: tuple[str, ...]
     heading: str
-    lines: list[str]
+    lines: list[_Line]
 
 
-def _make_block(lines: list[str]) -> _Block:
-    return _Block(lines=tuple(lines), is_table=any("|" in line for line in lines))
+def _scan_lines(text: str) -> list[_Line]:
+    """Split the normalized text into lines, tracking each line's char offsets.
+
+    Mirrors ``str.splitlines()`` for ``\n``-normalized text (the loader converts
+    ``\r\n`` and ``\r`` to ``\n`` before chunking) while also recording each
+    line's start and end offsets so chunk spans can be computed.
+    """
+    lines: list[_Line] = []
+    cursor = 0
+    for raw_line in text.split("\n"):
+        if raw_line == "" and cursor >= len(text):
+            break  # a trailing newline produced a final empty segment; drop it
+        start = cursor
+        end = start + len(raw_line)
+        lines.append(_Line(text=raw_line.rstrip(), start=start, end=end))
+        cursor = end + 1  # account for the "\n" separator
+    return lines
 
 
-def _split_blocks(lines: list[str]) -> list[_Block]:
+def _make_block(lines: list[_Line]) -> _Block:
+    return _Block(lines=tuple(lines), is_table=any("|" in line.text for line in lines))
+
+
+def _split_blocks(lines: list[_Line]) -> list[_Block]:
     blocks: list[_Block] = []
-    current: list[str] = []
+    current: list[_Line] = []
     for line in lines:
-        if line.strip() == "":
+        if line.text.strip() == "":
             if current:
                 blocks.append(_make_block(current))
                 current = []
@@ -86,7 +124,7 @@ def _split_blocks(lines: list[str]) -> list[_Block]:
     return blocks
 
 
-def _parse_sections(lines: list[str], doc: CorpusDocument) -> list[_Section]:
+def _parse_sections(lines: list[_Line], doc: CorpusDocument) -> list[_Section]:
     """Split lines into sections keyed by level-2+ headings.
 
     Level-1 headings (the document title) and the preamble under them (the
@@ -96,7 +134,7 @@ def _parse_sections(lines: list[str], doc: CorpusDocument) -> list[_Section]:
     stack: list[tuple[int, str]] = []
     path: tuple[str, ...] | None = None
     heading: str | None = None
-    content: list[str] = []
+    content: list[_Line] = []
 
     def flush() -> None:
         nonlocal path, heading, content
@@ -107,7 +145,7 @@ def _parse_sections(lines: list[str], doc: CorpusDocument) -> list[_Section]:
         content = []
 
     for line in lines:
-        match = _HEADING_RE.match(line)
+        match = _HEADING_RE.match(line.text)
         if match is None:
             if path is not None:
                 content.append(line)
@@ -142,23 +180,42 @@ def _is_protected(path: tuple[str, ...]) -> bool:
 
 
 def _split_table(block: _Block, *, max_tokens: int, chars_per_token: float) -> list[_Unit]:
-    """Split an oversized table at row boundaries, repeating the header row."""
-    header = next((line for line in block.lines if "|" in line), "")
-    rows = [line for line in block.lines if line != header]
-    header_tokens = count_tokens(header, chars_per_token)
+    """Split an oversized table at row boundaries, repeating the header row.
+
+    The repeated header is synthetic display text, so each unit's span covers
+    only the source rows it actually contains (never the repeated header line).
+    """
+    header = next((line for line in block.lines if "|" in line.text), None)
+    rows = [line for line in block.lines if line is not header]
+    header_text = header.text if header is not None else ""
+    header_tokens = count_tokens(header_text, chars_per_token)
     units: list[_Unit] = []
-    current: list[str] = []
+    current: list[_Line] = []
     current_tokens = header_tokens
     for row in rows:
-        row_tokens = count_tokens(row, chars_per_token)
+        row_tokens = count_tokens(row.text, chars_per_token)
         if current and current_tokens + row_tokens > max_tokens:
-            units.append(_Unit(text="\n".join([header, *current]), tokens=current_tokens))
+            units.append(
+                _Unit(
+                    text="\n".join([header_text, *(line.text for line in current)]),
+                    tokens=current_tokens,
+                    start=current[0].start,
+                    end=current[-1].end,
+                )
+            )
             current = []
             current_tokens = header_tokens
         current.append(row)
         current_tokens += row_tokens
     if current:
-        units.append(_Unit(text="\n".join([header, *current]), tokens=current_tokens))
+        units.append(
+            _Unit(
+                text="\n".join([header_text, *(line.text for line in current)]),
+                tokens=current_tokens,
+                start=current[0].start,
+                end=current[-1].end,
+            )
+        )
     return units
 
 
@@ -167,7 +224,7 @@ def _to_units(blocks: list[_Block], *, max_tokens: int, chars_per_token: float) 
     for block in blocks:
         tokens = count_tokens(block.text, chars_per_token)
         if not block.is_table or tokens <= max_tokens:
-            units.append(_Unit(text=block.text, tokens=tokens))
+            units.append(_Unit(text=block.text, tokens=tokens, start=block.start, end=block.end))
         else:
             units.extend(
                 _split_table(block, max_tokens=max_tokens, chars_per_token=chars_per_token)
@@ -232,6 +289,8 @@ def _build_chunk(
     section: str,
     text: str,
     index: int,
+    start_char: int,
+    end_char: int,
     chars_per_token: float,
 ) -> Chunk:
     digest = hashlib.sha256(f"{doc.source_file}|{section_path}|{index}".encode())
@@ -246,6 +305,8 @@ def _build_chunk(
         embedding_text=f"{doc.drug_name} ({doc.source_type}) {section_path}\n{text}",
         index=index,
         token_count=count_tokens(text, chars_per_token),
+        start_char=start_char,
+        end_char=end_char,
     )
 
 
@@ -271,6 +332,8 @@ def _chunk_section(
                 section=section.heading,
                 text=text,
                 index=0,
+                start_char=blocks[0].start,
+                end_char=blocks[-1].end,
                 chars_per_token=chars_per_token,
             )
         ]
@@ -284,6 +347,8 @@ def _chunk_section(
             section=section.heading,
             text="\n\n".join(unit.text for unit in group).strip(),
             index=index,
+            start_char=group[0].start,
+            end_char=group[-1].end,
             chars_per_token=chars_per_token,
         )
         for index, group in enumerate(groups)
@@ -298,10 +363,11 @@ def chunk_document(
     chars_per_token: float = CHARS_PER_TOKEN,
 ) -> list[Chunk]:
     """Chunk a single document into structure-aware chunks."""
-    lines = [line.rstrip() for line in doc.raw_text.splitlines()]
+    lines = _scan_lines(doc.raw_text)
     sections = _parse_sections(lines, doc)
     if not sections:
-        text = "\n\n".join(block.text for block in _split_blocks(lines)).strip()
+        blocks = _split_blocks(lines)
+        text = "\n\n".join(block.text for block in blocks).strip()
         if not text:
             return []
         return [
@@ -311,6 +377,8 @@ def chunk_document(
                 section="",
                 text=text,
                 index=0,
+                start_char=blocks[0].start,
+                end_char=blocks[-1].end,
                 chars_per_token=chars_per_token,
             )
         ]
