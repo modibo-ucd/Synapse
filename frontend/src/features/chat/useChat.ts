@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 
-import { ApiError, askQuestion, streamAskQuestion } from '../../lib/api'
+import { ApiError, askQuestion, streamAskQuestion } from '../../lib/api/client'
 import type { AskResponse, StageEvent } from '../../types/api'
 
 export type ChatStatus = 'idle' | 'loading' | 'success' | 'error'

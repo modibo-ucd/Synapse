@@ -2,12 +2,12 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, askQuestion, streamAskQuestion } from '../../lib/api'
+import { ApiError, askQuestion, streamAskQuestion } from '../../lib/api/client'
 import type { AskResponse } from '../../types/api'
 import { ChatPage } from './ChatPage'
 
-vi.mock('../../lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/api')>()
+vi.mock('../../lib/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/api/client')>()
   return { ...actual, askQuestion: vi.fn(), streamAskQuestion: vi.fn() }
 })
 

@@ -2,9 +2,8 @@ import {
   ApiErrorPayloadSchema,
   AskResponseSchema,
   StageEventSchema,
-  type AskResponse,
-  type StageEvent,
-} from '../types/api'
+} from './schemas'
+import type { AskResponse, StageEvent } from '../../types/api'
 
 const REQUEST_TIMEOUT_MS = 120_000
 
@@ -82,12 +81,12 @@ export async function askQuestion(question: string): Promise<AskResponse> {
   }
 }
 
-export type StreamEvent =
+export type AskStreamEvent =
   | { type: 'stage'; event: StageEvent }
   | { type: 'result'; result: AskResponse }
   | { type: 'error'; error: ApiError }
 
-function parseSseEvent(raw: string): StreamEvent | null {
+function parseSseEvent(raw: string): AskStreamEvent | null {
   let eventName = 'message'
   let data = ''
   for (const line of raw.split('\n')) {
@@ -117,7 +116,7 @@ function parseSseEvent(raw: string): StreamEvent | null {
   return null
 }
 
-export async function* streamAskQuestion(question: string): AsyncGenerator<StreamEvent> {
+export async function* streamAskQuestion(question: string): AsyncGenerator<AskStreamEvent> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 

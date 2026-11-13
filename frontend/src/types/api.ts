@@ -1,133 +1,213 @@
-import { z } from 'zod'
+// API types mirroring the backend contract. snake_case is intentional;
+// every additive (Phase A) field is optional.
 
-export const CitationSchema = z.object({
-  id: z.string(),
-  source_file: z.string(),
-  section: z.string(),
-  chunk_id: z.string(),
-  excerpt: z.string(),
-})
+export type StageName = 'plan' | 'retrieve' | 'tools' | 'review' | 'answer'
 
-export const SubGoalSchema = z.object({
-  id: z.string(),
-  question: z.string(),
-  intent: z.string().default(''),
-  entities: z.array(z.string()).default([]),
-})
+/** UI/timeline status. The completed `/ask` trace only emits done|skipped|error. */
+export type StageStatus = 'pending' | 'running' | 'done' | 'skipped' | 'error'
 
-export const PlanSchema = z.object({
-  complexity: z.enum(['simple', 'multi_hop']),
-  in_scope: z.boolean().default(true),
-  sub_goals: z.array(SubGoalSchema).default([]),
-})
+/** Backend `StageTraceInfo.status`. */
+export type StageTraceStatus = 'done' | 'skipped' | 'error'
 
-export const ReviewSchema = z.object({
-  verdict: z.enum(['pass', 'revise', 'insufficient_evidence']).default('pass'),
-  unsupported_claims: z.array(z.string()).default([]),
-  ambiguity_flags: z.array(z.string()).default([]),
-})
+export interface Citation {
+  id: string
+  source_file: string
+  /** Always present in the backend response; kept non-null to match the contract. */
+  section: string
+  chunk_id: string
+  excerpt: string
+}
 
-export const ToolCallSchema = z.object({
-  tool: z.string(),
-  arguments: z.record(z.unknown()).default({}),
-  status: z.enum(['ok', 'error']).default('ok'),
-})
+export interface SubGoal {
+  id: string
+  question: string
+  intent: string
+  entities: string[]
+}
 
-export const UsageSchema = z.object({
-  tokens_in: z.number().default(0),
-  tokens_out: z.number().default(0),
-})
+export interface Plan {
+  complexity: 'simple' | 'multi_hop'
+  in_scope: boolean
+  sub_goals: SubGoal[]
+}
 
-export const ComparisonCellSchema = z.object({
-  text: z.string(),
-  citation_ids: z.array(z.string()).default([]),
-})
+export type ReviewVerdict = 'pass' | 'revise' | 'insufficient_evidence'
 
-export const ComparisonRowSchema = z.object({
-  attribute: z.string(),
-  values: z.record(z.string(), ComparisonCellSchema),
-})
+export interface ReviewInfo {
+  verdict: ReviewVerdict
+  unsupported_claims: string[]
+  ambiguity_flags: string[]
+}
 
-export const ComparisonSchema = z.object({
-  drugs: z.array(z.string()).default([]),
-  rows: z.array(ComparisonRowSchema).default([]),
-})
+/** Legacy alias used by pre-Phase-C components. */
+export type Review = ReviewInfo
 
-export const EgfrThresholdSchema = z.object({
-  value: z.number(),
-  citation_ids: z.array(z.string()).default([]),
-})
+export type ToolCallStatus = 'ok' | 'error' | 'timeout'
 
-export const EgfrWidgetSchema = z.object({
-  type: z.literal('egfr').default('egfr'),
-  thresholds: z.array(EgfrThresholdSchema).default([]),
-})
+export interface ToolCallInfo {
+  tool: string
+  arguments: Record<string, unknown>
+  status: ToolCallStatus
+}
 
-export const AskResponseSchema = z
-  .object({
-    answer: z.string(),
-    sources: z.array(z.string()).default([]),
-    citations: z.array(CitationSchema).default([]),
-    disclaimer: z.string().default(''),
-    plan: PlanSchema.optional(),
-    tool_calls: z.array(ToolCallSchema).default([]),
-    review: ReviewSchema,
-    retrieval_mode: z.enum(['hybrid', 'bm25_only']).default('hybrid'),
-    trace_id: z.string().default(''),
-    usage: UsageSchema.default({ tokens_in: 0, tokens_out: 0 }),
-    latency_ms: z.number().default(0),
-    comparison: ComparisonSchema.nullable().optional(),
-    widgets: z.array(EgfrWidgetSchema).nullable().optional(),
-  })
-  .passthrough()
+/** Legacy alias used by pre-Phase-C components. */
+export type ToolCall = ToolCallInfo
 
-export const ApiErrorPayloadSchema = z.object({
-  error: z.object({
-    code: z.string(),
-    message: z.string(),
-    request_id: z.string().nullish(),
-  }),
-})
+export interface Usage {
+  tokens_in: number
+  tokens_out: number
+}
 
-export const StageEventDetailsSchema = z.object({
-  complexity: z.string().optional(),
-  in_scope: z.boolean().optional(),
-  sub_goals: z.array(SubGoalSchema).optional(),
-  mode: z.string().optional(),
-  chunk_count: z.number().optional(),
-  source_files: z.array(z.string()).optional(),
-  chunks: z
-    .array(
-      z.object({
-        source_file: z.string(),
-        section: z.string(),
-        dense_rank: z.number().nullable().optional(),
-        bm25_rank: z.number().nullable().optional(),
-        fused_score: z.number().optional(),
-      }),
-    )
-    .optional(),
-  claims: z.number().optional(),
-  tool_calls: z.array(ToolCallSchema).optional(),
-  verdict: z.string().optional(),
-  unsupported_claims: z.array(z.string()).optional(),
-  ambiguity_flags: z.array(z.string()).optional(),
-  sources: z.array(z.string()).optional(),
-})
+export interface ComparisonCell {
+  text: string
+  citation_ids: string[]
+}
 
-export const StageEventSchema = z.object({
-  stage: z.enum(['plan', 'retrieve', 'tools', 'review', 'answer']),
-  status: z.enum(['ok', 'skipped']).default('ok'),
-  duration_ms: z.number().default(0),
-  summary: z.string().default(''),
-  details: StageEventDetailsSchema.default({}),
-})
+export interface ComparisonRow {
+  attribute: string
+  values: Record<string, ComparisonCell>
+}
 
-export type Citation = z.infer<typeof CitationSchema>
-export type Plan = z.infer<typeof PlanSchema>
-export type Review = z.infer<typeof ReviewSchema>
-export type AskResponse = z.infer<typeof AskResponseSchema>
-export type ApiErrorPayload = z.infer<typeof ApiErrorPayloadSchema>
-export type StageEvent = z.infer<typeof StageEventSchema>
-export type Comparison = z.infer<typeof ComparisonSchema>
-export type EgfrWidget = z.infer<typeof EgfrWidgetSchema>
+export interface Comparison {
+  drugs: string[]
+  rows: ComparisonRow[]
+}
+
+export interface EgfrThreshold {
+  value: number
+  citation_ids: string[]
+}
+
+export interface EgfrWidget {
+  type: 'egfr'
+  thresholds: EgfrThreshold[]
+}
+
+export interface RetrievedChunk {
+  chunk_id: string
+  source_file: string
+  section_path: string
+  excerpt: string
+  dense_rank: number | null
+  bm25_rank: number | null
+  fused_score: number
+  cited: boolean
+}
+
+export interface RetrievalInfo {
+  mode: 'hybrid' | 'bm25_only'
+  candidates: number
+  returned: number
+  chunks: RetrievedChunk[]
+}
+
+export interface StageTrace {
+  stage: StageName
+  status: StageStatus
+  duration_ms: number | null
+  summary: string | null
+}
+
+export interface AskResponse {
+  answer: string
+  sources: string[]
+  citations: Citation[]
+  disclaimer: string
+  plan?: Plan
+  tool_calls: ToolCallInfo[]
+  review: ReviewInfo
+  retrieval_mode: 'hybrid' | 'bm25_only'
+  /** Phase A additive field (backend may emit `null`). */
+  retrieval?: RetrievalInfo | null
+  /** Phase A additive field (backend may emit `null`). */
+  trace?: StageTrace[] | null
+  trace_id: string
+  usage: Usage
+  latency_ms: number
+  comparison?: Comparison | null
+  widgets?: EgfrWidget[] | null
+}
+
+export interface HealthResponse {
+  status: string
+  index: 'building' | 'ready' | 'degraded'
+  llm_configured: boolean
+  version?: string
+  index_stats?: {
+    files: number
+    chunks: number
+    embedding_model: string | null
+  } | null
+}
+
+export interface SourceChunkSpan {
+  chunk_id: string
+  section_path: string
+  start: number
+  end: number
+}
+
+export type SourceDocType = 'dailymed' | 'medlineplus' | 'glossary'
+
+export interface SourceSummary {
+  file_name: string
+  title: string
+  drug_name: string
+  source_type: SourceDocType
+  size_chars: number
+}
+
+export interface SourceDocument {
+  file_name: string
+  title: string
+  drug_name: string
+  source_type: SourceDocType
+  markdown: string
+  chunks: SourceChunkSpan[]
+}
+
+export interface ApiErrorPayload {
+  error: {
+    code: string
+    message: string
+    request_id?: string | null
+  }
+}
+
+/** Raw SSE wire format for the streaming endpoint. */
+export type StreamEvent =
+  | { type: 'stage'; data: StageTrace }
+  | { type: 'result'; data: AskResponse }
+  | { type: 'error'; data: { code: string; message: string; request_id?: string } }
+
+// Legacy streaming event shape (Task 12 SSE `stage` events) used by the
+// existing trace panel and client until the Phase E stream rework lands.
+export interface StageEventDetails {
+  complexity?: string
+  in_scope?: boolean
+  sub_goals?: SubGoal[]
+  mode?: string
+  chunk_count?: number
+  source_files?: string[]
+  chunks?: Array<{
+    source_file: string
+    section: string
+    dense_rank?: number | null
+    bm25_rank?: number | null
+    fused_score?: number
+  }>
+  claims?: number
+  tool_calls?: ToolCallInfo[]
+  verdict?: string
+  unsupported_claims?: string[]
+  ambiguity_flags?: string[]
+  sources?: string[]
+}
+
+export interface StageEvent {
+  stage: StageName
+  status: 'ok' | 'skipped'
+  duration_ms: number
+  summary: string
+  details: StageEventDetails
+}

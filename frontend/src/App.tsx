@@ -1,23 +1,33 @@
 import { Disclaimer } from './components/Disclaimer'
-import { ChatPage } from './features/chat/ChatPage'
+import { AppShell } from './components/layout/AppShell'
 
 export default function App() {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto w-full max-w-3xl px-4 py-4">
-          <h1 className="text-xl font-semibold tracking-tight">Synapse</h1>
-          <p className="text-sm text-slate-500">Agentic pharmacology research assistant</p>
+    <AppShell
+      left={
+        <div className="p-4">
+          <h2 className="text-sm font-semibold">History</h2>
+          <p className="mt-1 text-xs text-ink-muted">Sessions will appear here.</p>
         </div>
-      </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-        <ChatPage />
-      </main>
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto w-full max-w-3xl px-4 py-4">
-          <Disclaimer />
+      }
+      main={
+        <div className="mx-auto max-w-3xl">
+          <h1 className="font-display text-2xl font-semibold text-ink">Synapse</h1>
+          <p className="mt-1 text-ink-muted">
+            Agentic pharmacology research assistant — each question is answered independently
+            from the corpus.
+          </p>
+          <div className="card-float mt-6 p-6">
+            <Disclaimer />
+          </div>
         </div>
-      </footer>
-    </div>
+      }
+      right={
+        <div className="p-4">
+          <h2 className="text-sm font-semibold">Agent trace</h2>
+          <p className="mt-1 text-xs text-ink-muted">Pipeline stages will appear here.</p>
+        </div>
+      }
+    />
   )
 }

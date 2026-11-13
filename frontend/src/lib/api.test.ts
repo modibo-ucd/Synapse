@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, askQuestion } from './api'
+import { ApiError, askQuestion } from './api/client'
 
 const validBody = {
   answer: 'Answer text.',

@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phase A (backend API) completed 2026-11-13. Next: FRONTEND Phase B / Tasks 15/17.
+Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phase A (backend API) and Phase B (design system, theme engine, responsive shell) completed 2026-11-13. Next: FRONTEND Phase C / Tasks 15/17.
 
 ## Checklist
 
@@ -345,6 +345,46 @@ Additive, non-breaking backend work per `docs/FRONTEND_SPEC.md`:
 Checks: `ruff` ✓, `mypy --strict` (51 files) ✓, `pytest` (207) ✓. Eval re-run
 (2026-11-13): **17/17** (p50 14.6s, p95 24.5s) — the previously flaky q12
 "bleeding" substring now matches; no regression from the additive changes.
+
+## FRONTEND Phase B (foundation) — 2026-11-13
+
+Design system, theme engine and responsive shell per `docs/FRONTEND_SPEC.md`
+Sections 0/3/4/5/7. Tailwind v3.4 (no v4), palette is exactly the nine hexes.
+
+- **Dependencies** (verified via `npm view`, pinned exact): `zustand@5.1.0`,
+  `unist-util-visit@5.2.0`, `lucide-react@1.72.0`,
+  `@fontsource-variable/inter@5.3.0`, `@fontsource-variable/fraunces@5.3.0`,
+  `@tailwindcss/typography@0.5.20`, `clsx@2.1.1`; dev: `prettier@3.10.1`,
+  `prettier-plugin-tailwindcss@0.8.1`, `tailwindcss@3.4.17` (exact). Fonts are
+  self-hosted via fontsource (no CDN); no `remark-frontmatter` (corpus has no
+  YAML front matter).
+- **Design system** — `tailwind.config.ts` (9-hex palette + semantic `var(--c-*)`
+  tokens, Fraunces/Inter fonts, shadows/keyframes) replaces `tailwind.config.js`;
+  `src/index.css` = Section 3.3 plus a small `.drawer-sheet`/`::backdrop` block
+  (Section 5 Drawer needs it); `index.html` (viewport-fit + theme-color) and
+  `public/theme-init.js` (flash-free pre-paint theme).
+- **Types/state** — `types/api.ts` rewritten as plain interfaces (mirrors the
+  backend, incl. Phase A `retrieval`/`trace`/`index_stats`; keeps legacy names
+  `Review`/`StageEvent`/`Plan`/`Comparison`/`EgfrWidget` so pre-Phase-C components
+  still compile); `types/ui.ts`; `lib/api/schemas.ts` (Zod). `lib/api.ts` moved to
+  `lib/api/client.ts` (spec file map; importers updated).
+- **Storage/stores/hooks** — `lib/storage/safeStorage.ts` (try/catch + memory
+  fallback + quota rethrow), `stores/{history,settings,ui}` (Zustand persist;
+  history caps 50 sessions/200 turns, `compactForStorage`, quota evict+retry with
+  `storageWarning` surfaced via the non-persisted ui store), `hooks/{useTheme,
+  useMediaQuery,useVisualViewport}`, `lib/{haptics,contrast}`.
+- **Shell** — `components/layout/{AppShell,Header,ThemeToggle,Drawer}` (3-col grid
+  at ≥1024px, native `<dialog>` drawers below, `scope-dark` sidebars); `App.tsx`
+  renders the shell with placeholder columns and the always-visible disclaimer.
+- **Tests** — 50 passing (13 files): contrast (WCAG ≥4.5/≥3 + sage exception),
+  safeStorage fallback/quota, stores (CRUD, caps, quota fallback, schema version),
+  theme toggle (dark class + `theme-color` meta + persistence). Added a
+  `window.matchMedia` stub to `test/setup.ts` (jsdom lacks it).
+
+Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vitest
+run` ✓ (50/50). Dev-server smoke ✓ (`/` serves the shell + `/theme-init.js`).
+Visual light/dark at 390px/1280px is DOM-verified via tests; pixel-level checks
+require a real browser (logged as a manual step in the Section 7 matrix).
 
 ## Known issues
 
