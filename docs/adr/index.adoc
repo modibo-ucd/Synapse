@@ -1,0 +1,24 @@
+= Architectural Decision Records
+
+This directory records the architectural decisions behind Synapse. Each record
+describes the context, the decision, the alternatives that were considered and
+rejected, and the trade-offs accepted.
+
+[cols="1,3,1,3",options="header"]
+|===
+| ADR | Title | Status | Summary
+| xref:0001-self-contained-architecture.adoc[ADR-0001] | Self-contained architecture | Accepted | Everything runs in one container; corpus, vectors and BM25 are in memory.
+| xref:0002-typed-five-stage-pipeline.adoc[ADR-0002] | Typed five-stage pipeline | Accepted | Plan, Retrieve, Tools, Review, Answer as a typed sequential loop.
+| xref:0003-in-memory-hybrid-retrieval.adoc[ADR-0003] | In-memory hybrid retrieval | Accepted | Dense cosine + BM25 fused with reciprocal rank fusion.
+| xref:0004-agent-chosen-local-tools.adoc[ADR-0004] | Agent-chosen local tools | Accepted | Model chooses tools via native function calling from a typed allowlist.
+| xref:0005-grounding-review-and-disclaimer.adoc[ADR-0005] | Grounding review and disclaimer | Accepted | A separate critic plus deterministic checks before the answer is emitted.
+| xref:0006-structure-aware-chunking.adoc[ADR-0006] | Structure-aware chunking | Accepted | Split on headings; tables and protected sections never split mid-way.
+| xref:0007-llm-provider-abstraction-and-degradation.adoc[ADR-0007] | LLM provider abstraction and degradation | Accepted | Protocols over the SDK; BM25-only fallback when embeddings fail.
+| xref:0008-api-contract-and-additive-evolution.adoc[ADR-0008] | API contract and additive evolution | Accepted | /ask is the graded contract; streaming and sources are additive.
+| xref:0009-security-posture.adoc[ADR-0009] | Security posture | Accepted | Grounding, input bounds, allowlist-only sources, non-root container.
+| xref:0010-frontend-architecture.adoc[ADR-0010] | Frontend architecture | Accepted | React + Vite + Tailwind with Zustand stores and sanitized Markdown.
+| xref:0011-design-tokens-and-theming.adoc[ADR-0011] | Design tokens and theming | Accepted | Nine-hex palette with semantic tokens switched by a dark class.
+| xref:0012-client-side-history.adoc[ADR-0012] | Client-side history | Accepted | Persisted, quota-safe local history; no server-side sessions.
+| xref:0013-testing-strategy.adoc[ADR-0013] | Testing strategy | Accepted | Strict LLM mocking, pytest-socket, Vitest, and a live eval harness.
+| xref:0014-container-image.adoc[ADR-0014] | Container image | Accepted | Multi-stage build, non-root user, corpus baked into the image.
+|===

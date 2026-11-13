@@ -1,0 +1,70 @@
+= ADR-0007: LLM provider abstraction and degradation
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: providers, resilience
+
+== Context
+
+The only external dependency is an OpenAI-compatible LiteLLM proxy configured
+via environment variables. Graders inject their own values, and the app must
+degrade gracefully: `/health` must return 200 even when the endpoint is
+unreachable or the key is missing, and retrieval must still work when
+embeddings are unavailable.
+
+== Decision
+
+* `backend/app/providers/protocols.py` defines `LLMClient` and
+  `EmbeddingProvider` Protocols; services and agent stages depend only on these.
+* `backend/app/providers/openai.py` implements them on `AsyncOpenAI`, mapping
+  vendor errors to a single domain error shape, retrying retryable errors with
+  capped exponential backoff and jitter, and capping concurrency with a
+  semaphore.
+* Structured output probes `response_format` once and caches the mode,
+  preferring `json_schema` and falling back to JSON mode plus Pydantic
+  validation.
+* `IndexManager` builds the index in a background task; if embeddings fail it
+  marks the index `degraded` and the retriever runs BM25-only
+  (`retrieval_mode: "bm25_only"`), never crashing.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Use the vendor SDK directly everywhere | Less code | Couples all layers to one vendor and blocks strict mocking in tests.
+| Only dense retrieval | Simpler index | No fallback when embeddings are down; see ADR-0003.
+| Fail fast on any provider error | Obvious behavior | Violates the graded resilience requirement (/health always 200, /ask still answers).
+|===
+
+== Pros
+
+* The Protocol seam makes the LLM and embedding providers trivially mockable
+  (the `FakeLLMClient`/`FakeEmbeddingProvider` in `backend/tests/fakes/`).
+* Errors are normalized into one JSON shape and never leak provider payloads.
+* Degradation to BM25-only keeps the product useful without embeddings.
+
+== Cons
+
+* The retry/backoff and error-mapping layer is extra code to maintain.
+* The capability probe adds a small amount of startup/runtime complexity.
+
+== Trade-offs
+
+Generality (a vendor-agnostic abstraction) was traded for a modest layer of
+indirection, justified by the strict test-mocking requirement and the need for
+graceful degradation.
+
+== Consequences and revisit triggers
+
+Revisit if a second provider or a non-OpenAI-compatible endpoint must be
+supported; a new implementation only has to satisfy the existing Protocols.
+
+== References
+
+* Code: `backend/app/providers/protocols.py`
+* Code: `backend/app/providers/openai.py`
+* Code: `backend/app/retrieval/index_manager.py`
+* Code: `backend/app/core/errors.py`
+* Code: `backend/tests/fakes/llm.py`
+* Code: `backend/tests/fakes/embeddings.py`

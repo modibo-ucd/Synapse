@@ -1,0 +1,75 @@
+= ADR-0002: Typed five-stage pipeline
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: architecture, agent
+
+== Context
+
+The assignment mandates a strict five-stage loop executed in order: Plan,
+Retrieve, Tools, Review and Answer. No stage may be skipped, merged or
+reordered, and the choice of tools must be made by the model, not hardcoded.
+The author must be able to explain the control flow in an interview, so the
+orchestration had to stay small and transparent.
+
+== Decision
+
+A plain Python `Pipeline` class runs the five stages as a typed sequential loop,
+with no framework. Each stage:
+
+* has typed Pydantic v2 input and output models (`extra="forbid"`),
+* LLM-backed stages use structured output validated against their schema, with
+  exactly one repair retry before a domain error,
+* emits a typed `StageEvent` (stage, status, duration, summary) that feeds the
+  response `trace`, the SSE stream and the logs.
+
+`PipelineContext._check_order` in `backend/app/agent/events.py` enforces the
+fixed order from a constant tuple and raises on any violation, so the stage
+order is a property of the code, not of a prompt.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| LangChain / LangGraph | Declarative graphs, retries, observers | Large dependency surface and implicit control flow that would be hard to explain; the loop is only five fixed steps.
+| Free-form chained functions | Simplest possible code | Nothing would stop a future edit from reordering or skipping a stage; the graded requirement needs enforcement.
+| Regex parsing of LLM text output | Fewer API constraints | Fragile; structured output plus Pydantic validation is strictly more reliable.
+|===
+
+== Pros
+
+* Stage order is enforced by code and observable via events.
+* Control flow is linear and explainable; each stage is a small, testable class.
+* Parallelism is contained inside stages (per-sub-goal retrieval, tool calls),
+  never across stages, keeping the order intact.
+
+== Cons
+
+* A linear loop cannot express branching or revisiting a stage; the pipeline
+  cannot, for example, retrieve again after a review flags gaps.
+* The budget constants (sub-goals, tool calls, timeouts) are global, not
+  per-question adaptive.
+
+== Trade-offs
+
+Flexibility was knowingly traded for determinism and auditability. The whole
+request is bounded by `REQUEST_TIMEOUT_S` (default 90 s) via `asyncio.wait_for`,
+so an over-long pipeline fails cleanly rather than hanging.
+
+== Consequences and revisit triggers
+
+Revisit if a future requirement needs conditional stage transitions (for
+example, re-retrieval on insufficient evidence). The `PipelineContext` seam
+already centralizes order enforcement, so a graph could be introduced there
+without changing the individual stages.
+
+== References
+
+* Code: `backend/app/agent/pipeline.py`
+* Code: `backend/app/agent/events.py`
+* Code: `backend/app/agent/plan.py`
+* Code: `backend/app/agent/tool_runner.py`
+* Code: `backend/app/agent/review.py`
+* Code: `backend/app/agent/answer.py`
+* Code: `backend/app/schemas/domain.py`

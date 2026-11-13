@@ -1,0 +1,66 @@
+= ADR-0014: Container image
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: deployment
+
+== Context
+
+Graders run exactly `docker build -t agent . && docker run -p 8000:8000
+--env-file .env agent`. The image must therefore be fully self-contained, pin
+its base images, install from the pinned manifests, and run without root.
+
+== Decision
+
+The root `Dockerfile` uses three stages on pinned base images:
+
+* `frontend-build` (`node:22-alpine`): `npm ci` then `npm run build`.
+* `backend-build` (`python:3.11-slim`): creates `/opt/venv` and installs the
+  pinned Python dependencies with `pip install .`.
+* `runtime` (`python:3.11-slim`): copies only the venv, `backend/`, `corpus/`
+  and `frontend/dist`, runs as non-root user `appuser` (uid 10001), exposes 8000,
+  defines a `HEALTHCHECK` against `/health`, and starts uvicorn via exec-form
+  `CMD`.
+
+`CACHE_DIR` points at a writable `/tmp/synapse-cache` owned by the non-root
+user, and the `.dockerignore` excludes secrets, tests, docs, caches and the
+confidential PDF.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Single-stage image | Simpler | Ships Node and build tooling at runtime, bloating the image.
+| Root user at runtime | One less setup step | Unnecessary privilege for a read-only service.
+| `:latest` base images | Reproducible across registries | Unpinned tags drift; the graded build must be reproducible.
+|===
+
+== Pros
+
+* Reproducible, pinned, multi-stage build with a small runtime layer.
+* Non-root execution and a healthcheck make the container production-like.
+* The corpus is baked in, so the container needs no host files.
+
+== Cons
+
+* The image rebuilds the frontend and re-installs Python dependencies on every
+  code change.
+* The runtime still embeds the LLM SDK and numpy, so the image is ~418 MB.
+
+== Trade-offs
+
+Image size was accepted for simplicity and self-containment; the graded command
+has no way to mount a corpus or connect a database, so those must live in the
+image.
+
+== Consequences and revisit triggers
+
+Revisit if the image size must shrink (for example, by splitting the runtime
+from a build cache) or if the corpus grows large enough to warrant a volume.
+
+== References
+
+* Code: `Dockerfile`
+* Code: `.dockerignore`
+* xref:0001-self-contained-architecture.adoc[ADR-0001]

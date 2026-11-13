@@ -1,0 +1,70 @@
+= ADR-0009: Security posture
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: security, safety
+
+== Context
+
+Synapse is a research/educational tool, not a medical device, and it must never
+diagnose, prescribe or give personalized dosing instructions. It serves
+third-party Markdown (the corpus and model output) to a browser, and it must
+protect against prompt injection, path traversal and secret leakage.
+
+== Decision
+
+* Grounding: clinical facts come only from retrieved evidence or tool output;
+  unsupported claims are flagged and removed before the answer (ADR-0005).
+* The mandatory disclaimer is appended by code, not the model.
+* Inputs are bounded: questions are stripped of control characters and capped at
+  2000 characters (`sanitize_question` in `backend/app/core/text.py`); pipeline
+  budgets cap sub-goals, tool calls and total time.
+* Source serving is allowlist-only and traversal-safe
+  (`backend/app/api/sources.py` resolves names against the corpus directory).
+* Security headers (CSP, X-Frame-Options, nosniff, Referrer-Policy) are applied
+  to every response (`backend/app/main.py`).
+* The frontend renders Markdown through `rehype-sanitize` and never uses
+  `dangerouslySetInnerHTML` (`frontend/src/components/SafeMarkdown.tsx`).
+* The container runs as a non-root user (`Dockerfile`); secrets come only from
+  environment and are redacted from logs (`backend/app/core/logging.py`).
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Render Markdown unsanitized | Fewer dependencies | XSS risk from corpus and model text.
+| Per-request auth | Controls access | The graded interface forbids authentication.
+| Inline the disclaimer via prompt only | Simpler | The model could omit it; the requirement is unconditional.
+|===
+
+== Pros
+
+* Defense in depth across grounding, input bounds, output sanitization and
+  deployment hardening.
+* No secrets in the image, logs or error responses.
+* The read-only, allowlist-only source endpoint cannot escape the corpus.
+
+== Cons
+
+* The strict CSP constrains future inline scripting (a deliberate trade-off).
+* Grounding and sanitization add latency and a modest code surface.
+
+== Trade-offs
+
+Convenience (open endpoints, richer rendering) was traded for safety. The
+product remains a research aid, with a clear disclaimer on every answer.
+
+== Consequences and revisit triggers
+
+Revisit the CSP if a future feature needs an inline script or a third-party
+asset; any change must preserve the no-`dangerouslySetInnerHTML` rule.
+
+== References
+
+* Code: `backend/app/main.py` (security headers)
+* Code: `backend/app/core/text.py` (input sanitization)
+* Code: `backend/app/api/sources.py` (allowlist + traversal safety)
+* Code: `backend/app/core/logging.py` (secret redaction)
+* Code: `frontend/src/components/SafeMarkdown.tsx` (Markdown sanitization)
+* Code: `Dockerfile` (non-root user)

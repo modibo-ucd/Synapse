@@ -1,0 +1,70 @@
+= ADR-0006: Structure-aware chunking
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: retrieval, corpus
+
+== Context
+
+The corpus is Markdown drug labels with nested headings (`## 4
+CONTRAINDICATIONS`, `### 7.1 ...`) and pipe-formatted tables. Naive fixed-size
+chunking would split tables and protected sections (Boxed Warning,
+Contraindications, Dosage) mid-way, degrading retrieval and citation quality.
+
+== Decision
+
+`backend/app/retrieval/chunker.py` chunks documents structure-aware:
+
+* Split on Markdown headings; every chunk carries the full heading path
+  (`Drug > Section > Subsection`).
+* A "block" is a run of non-blank lines; blocks containing `|` are tables and
+  are kept atomic.
+* Boxed Warning, Contraindications and Dosage sections are never split.
+* Oversized sections split only at paragraph or table-row boundaries, repeating
+  the table header row on continuation chunks.
+* Chunk ids are stable, derived from the file, heading path and index
+  (`sha256(file|path|index)[:16]`).
+
+The loader (`backend/app/retrieval/loader.py`) normalizes line endings and
+derives `(source_type, drug_name)` from the file name; `GLOSSARY.md` is parsed
+separately and never chunked.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Fixed token windows | Simple and common | Splits tables and sections, breaking citations and clinical context.
+| Sentence-level chunking | Cleaner semantic units | Loses table integrity and heading structure.
+| Whole-document chunks | No information loss | Too large for the token budget and for focused retrieval.
+|===
+
+== Pros
+
+* Tables and protected sections stay intact, so retrieved passages are complete
+  and citable.
+* Heading paths give citations a meaningful section label.
+* Stable ids let source spans and citations resolve deterministically.
+
+== Cons
+
+* The parser is corpus-specific (assumes the DailyMed/MedlinePlus heading and
+  table conventions).
+* Chunk sizes vary widely because protected sections are never split.
+
+== Trade-offs
+
+Uniform chunk size was traded for structural integrity and citation quality,
+which matters more for a grounded medical assistant than packing efficiency.
+
+== Consequences and revisit triggers
+
+Revisit if the corpus changes format (for example, a new heading or table
+style). The chunker's invariants are covered by dedicated unit tests in
+`backend/tests/unit/test_chunker.py`.
+
+== References
+
+* Code: `backend/app/retrieval/chunker.py`
+* Code: `backend/app/retrieval/loader.py`
+* Code: `backend/tests/unit/test_chunker.py`

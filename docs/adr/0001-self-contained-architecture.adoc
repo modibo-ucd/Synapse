@@ -1,0 +1,129 @@
+= ADR-0001: Self-contained architecture
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: architecture, deployment
+
+== Context
+
+Synapse is graded by a single command run against the repository root:
+
+    docker build -t agent . && docker run -p 8000:8000 --env-file .env agent
+
+The graders inject their own `.env`, and only four variables are guaranteed:
+`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` and `OPENAI_EMBEDDING_MODEL`.
+The graded interface requires that `GET /health` always returns HTTP 200 and that
+`POST /ask` returns a cited answer, so the application must start and serve
+traffic without any service other than the OpenAI-compatible LiteLLM endpoint.
+
+The corpus is small (21 Markdown files: ten DailyMed labels, ten MedlinePlus
+monographs and `GLOSSARY.md`), and the assignment requires "in-memory
+similarity" for retrieval. The delivery window was three calendar days, which
+favored a design with no infrastructure to provision, configure or secure.
+
+== Decision
+
+Everything runs inside one container image:
+
+* The corpus is copied into the image and read only at runtime.
+* The dense vector index and the BM25 index are both held in process memory.
+* Embeddings are computed once at startup (batched, concurrency-capped) and
+  cached on disk under `CACHE_DIR`, keyed by `sha256(text)` plus the embedding
+  model name, so a restart reuses the cached vectors.
+* There is no database. Client-side conversation history is stored in the
+  browser's local storage (`frontend/src/stores/history.ts`), not on the server.
+* The only network dependency is the LiteLLM proxy reached via
+  `OPENAI_BASE_URL`.
+
+The container runs uvicorn as a non-root user (uid 10001), serves the built
+frontend and the API from the same process on port 8000, and exposes a
+`HEALTHCHECK` against `/health`.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| PostgreSQL with pgvector | Persistent vectors, filtering and scale | Requires a second service and credentials; graded command cannot assume a database; persistence is unnecessary for a read-only 21-file corpus.
+| Redis | Embedding/result cache, rate limiting | Adds a second service; the corpus is tiny enough to cache in memory; rate limiting is a non-goal for a graded demo.
+| Managed vector database (Pinecone, Weaviate Cloud, etc.) | Zero-ops scaling | External SaaS dependency and an API key the graders would have to provide; violates the self-contained requirement.
+| Vector server in a second container (Qdrant, Chroma server) | Cleaner separation, larger-than-memory indexes | Docker Compose is out of scope; a second container is still an external service the graded command does not start.
+| Embedded stores: SQLite with a vector extension, LanceDB, FAISS files | Self-contained persistence and scale | Native build dependencies and file-format complexity add risk with no benefit at 460 chunks; numpy already satisfies exact cosine search.
+|===
+
+Each alternative either reintroduces an external service, adds native build
+complexity, or solves a scale problem this corpus does not have.
+
+== Pros
+
+* Reproducible for the grader: one build, one run, no external state.
+* Smallest attack surface: no database credentials, no persistent store, no
+  write paths beyond the embedding cache.
+* The corpus is read-only and baked into the image, so answers are stable
+  across runs and replicas.
+* Exact search over 460 vectors is trivially fast in numpy (one matrix-vector
+  product), so no approximate index is needed.
+
+== Cons
+
+* Cold start embeds the whole corpus (~460 texts) before the first answer; this
+  is mitigated by the on-disk cache and by `/ask` awaiting readiness with a
+  bounded timeout rather than failing.
+* The index is rebuilt on every restart; with a warm cache this is only a
+  re-chunk plus a matrix load.
+* No durable server-side state: history is client-side only, and there are no
+  sessions or per-user data.
+* No hot reload of the corpus: adding a document requires rebuilding the image.
+* Each replica builds its own identical index; memory scales linearly with
+  replicas.
+
+== Trade-offs
+
+Durability, horizontal scale and hot reload were knowingly sacrificed in favor
+of a single self-contained process that the graded command can start with no
+preconditions. The `VectorIndex` Protocol in
+`backend/app/retrieval/vector_index.py` is the deliberate seam for replacing the
+numpy index with a real vector store later, without touching retrieval callers.
+When embeddings are unavailable the system degrades to BM25-only retrieval
+(reported as `retrieval_mode: "bm25_only"`) instead of crashing, accepting lower
+recall over unavailability.
+
+== Consequences and revisit triggers
+
+Operationally, readiness is reported on `/health` as `building`, `ready` or
+`degraded`, and `/ask` awaits readiness. Revisit this decision when any of the
+following becomes true:
+
+* The corpus outgrows memory or exact search latency exceeds the latency budget.
+* Persistence, multi-tenancy or server-side session state become requirements.
+* Multiple replicas make the per-replica embedding cost unacceptable.
+
+The migration path is to implement a second `VectorIndex` (and, if needed, a
+document store) behind the existing Protocols, and to add a
+`Docker Compose`/sidecar deployment only after the graded path is preserved.
+
+== Measured facts
+
+* Corpus: 21 files (20 chunked documents plus `GLOSSARY.md`).
+* Chunks: 460 (`GET /health` reports `index_stats.chunks`).
+* Embedding dimension: 1536 (`text-embedding-3-small`).
+* Token volume: not precisely measured; estimated 100k-130k tokens from the
+  ~454 KB of corpus text at ~4 characters per token.
+* Index memory: 460 x 1536 x 4 bytes = 2,826,240 bytes (~2.8 MB) for the
+  float32 vector matrix; BM25 term tables add a comparable, unmeasured amount.
+* Time to ready: not measured; startup embeds in batches of 100 with a
+  concurrency cap of 4 and reuses the disk cache on restart.
+* Median retrieval latency: p50 ~14 s, p95 ~27 s across the 17-question live
+  evaluation (end-to-end pipeline, dominated by LLM calls).
+* Image size: 418 MB (`docker image ls agent`).
+
+== References
+
+* Code: `Dockerfile`
+* Code: `backend/app/main.py` (lifespan starts the background index build)
+* Code: `backend/app/retrieval/index_manager.py` (in-memory index + disk cache)
+* Code: `backend/app/retrieval/vector_index.py` (numpy index + Protocol)
+* Code: `frontend/src/stores/history.ts` (client-side history)
+* xref:0003-in-memory-hybrid-retrieval.adoc[ADR-0003]
+* xref:0014-container-image.adoc[ADR-0014]
+

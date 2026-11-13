@@ -1,0 +1,66 @@
+= ADR-0013: Testing strategy
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: testing
+
+== Context
+
+The agent depends on a live LLM, which is slow, non-deterministic and costly.
+Tests had to run fast and offline, while still covering the five-stage pipeline,
+retrieval, grounding and the API contract. A separate live evaluation was needed
+to score real answers before submission.
+
+== Decision
+
+* Backend: `pytest` with `pytest-asyncio` (`asyncio_mode = "auto"`) and
+  `pytest-socket` to block outbound network.
+* Strict LLM mocking: an autouse fixture installs `FakeLLMClient` and
+  `FakeEmbeddingProvider` (`backend/tests/fakes/`) that are scriptable per
+  stage and raise on any unscripted call, so a test cannot silently hit the
+  network.
+* Frontend: Vitest + Testing Library over jsdom, covering stores, hooks,
+  components, Markdown sanitization and the SSE parser.
+* A live eval harness (`backend/tests/eval/`, marker `llm_live`, excluded from
+  the default run) POSTs 17 golden questions to a running server and scores
+  deterministic checks (expected files, facts, disclaimer, latency).
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Record-and-replay (VCR) of HTTP | Faithful provider behavior | Brittle and still needs a live recording; scriptable fakes are deterministic and explicit.
+| Only unit tests | Fast | No end-to-end confidence in the API or the UI.
+| Always-on live eval in CI | Continuous quality signal | Slow and flaky; kept opt-in via the marker.
+|===
+
+== Pros
+
+* Unit and integration tests make zero real LLM calls and run in seconds.
+* Fakes that raise on unscripted calls surface accidental network use.
+* The live harness gives a measurable pass/fail gate for the public questions.
+
+== Cons
+
+* Scriptable fakes must be maintained in step with the Protocols.
+* The live harness needs a running server and a real proxy, so it is manual.
+
+== Trade-offs
+
+Deterministic, fast, offline tests were favored over end-to-end realism, with
+the live harness reserved for pre-submission verification.
+
+== Consequences and revisit triggers
+
+Revisit if provider behavior changes enough to make the fakes diverge from
+reality; the eval harness's golden set should grow alongside the corpus.
+
+== References
+
+* Code: `backend/tests/conftest.py`
+* Code: `backend/tests/fakes/llm.py`
+* Code: `backend/tests/fakes/embeddings.py`
+* Code: `backend/tests/eval/run.py`
+* Code: `backend/tests/eval/scoring.py`
+* Code: `frontend/src/test/setup.ts`

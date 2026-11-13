@@ -1,0 +1,72 @@
+= ADR-0004: Agent-chosen local tools
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: agent, tools
+
+== Context
+
+The assignment requires at least two local tools chosen by the agent through
+native function calling, with tool choice explicitly not hardcoded or routed by
+keywords. The tools must be self-contained (no external service) and safe.
+
+== Decision
+
+A typed allowlist registry (`ToolRegistry`) exposes exactly three local,
+deterministic, side-effect-free tools, each with a Pydantic arguments model and
+result model:
+
+* `glossary_lookup(term)` — search the parsed `GLOSSARY.md` entries.
+* `label_section_lookup(drug, section)` — return a label section by heading.
+* `threshold_check(drug, parameter, value)` — extract a numeric threshold from
+  label text, returning `unknown` unless certain, always with the supporting
+  passage.
+
+`ToolRunner` (`backend/app/agent/tool_runner.py`) presents the tool specs to the
+model via native function calling and executes whatever the model requests, up
+to `MAX_TOOL_CALLS` (default 4). Tool errors (unknown tool, invalid arguments,
+timeout, internal error) are returned to the model as structured results rather
+than raised, and each result carries provenance for the review stage.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Keyword routing (`if "dose" in question`) | Trivial to implement | Explicitly forbidden by the assignment; brittle and opaque.
+| A single "search" tool | Fewer moving parts | Does not demonstrate agent tool choice and loses the typed, section-accurate lookups.
+| External tools (web search, calculators) | Richer answers | Breaks self-containment and grounding; answers must come from the corpus.
+|===
+
+== Pros
+
+* Tool choice is genuinely the model's, satisfying the graded requirement.
+* Every tool is typed and local, so behavior is deterministic and testable.
+* Errors are data, not exceptions, so the loop never crashes on a bad tool call.
+
+== Cons
+
+* The model may call the wrong tool or none; the runner relies on the model to
+  pick sensibly.
+* Only three tools exist, which bounds what the agent can do beyond retrieval.
+
+== Trade-offs
+
+Capability breadth was traded for safety and auditability. The call budget
+bounds cost, and every result is fed back into the draft and the grounding
+review.
+
+== Consequences and revisit triggers
+
+Revisit when a new corpus-specific capability (for example, a drug-interaction
+lookup) is needed; new tools are added by implementing the `Tool` base class and
+registering them in `build_tool_registry`.
+
+== References
+
+* Code: `backend/app/agent/tools/base.py`
+* Code: `backend/app/agent/tools/__init__.py`
+* Code: `backend/app/agent/tools/glossary.py`
+* Code: `backend/app/agent/tools/label.py`
+* Code: `backend/app/agent/tools/threshold.py`
+* Code: `backend/app/agent/tool_runner.py`

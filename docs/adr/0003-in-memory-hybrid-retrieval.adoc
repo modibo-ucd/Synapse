@@ -1,0 +1,75 @@
+= ADR-0003: In-memory hybrid retrieval
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: retrieval, architecture
+
+== Context
+
+The assignment requires retrieval by "in-memory similarity" over a corpus of
+drug labels and patient monographs. Clinical questions often contain exact
+numbers and units (`30`, `mL/min`, `INR`) that dense embeddings can miss, while
+abbreviations must be expanded so `INR` also matches "International Normalized
+Ratio".
+
+== Decision
+
+Each sub-goal is searched with two in-memory indexes and fused:
+
+* Dense: a numpy float32 matrix (L2-normalized) queried by cosine via a single
+  matrix-vector product (`backend/app/retrieval/vector_index.py`).
+* Lexical: a dependency-free BM25 index whose tokenizer keeps numbers, units and
+  abbreviations (`backend/app/retrieval/bm25.py`).
+
+The two ranked lists are fused with reciprocal rank fusion,
+`score = sum 1/(k + rank)` with `k = 60` (`backend/app/retrieval/hybrid.py`).
+Glossary-derived abbreviations expand the query before lexical search. The
+retriever deduplicates across sub-goals, enforces a token budget, and guarantees
+at least one chunk per named drug (the drug-coverage rule).
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Dense only | Simplest similarity search | Misses exact numbers/units that lexical search finds verbatim.
+| BM25 only | Exact-term recall | Misses semantic paraphrases; the assignment asks for similarity.
+| Learned fusion model | Best potential recall | Adds training data and latency with no evidence it is needed at 460 chunks.
+| External vector database | Scale | Violates the self-contained requirement; see ADR-0001.
+|===
+
+== Pros
+
+* Exact-term recall and semantic similarity complement each other; RRF needs no
+  score calibration.
+* No external service and no native dependencies beyond numpy.
+* The drug-coverage rule keeps multi-drug comparisons grounded in every named
+  drug's label.
+
+== Cons
+
+* Exact (brute-force) search is O(n) per query; fine at 460 chunks, not at
+  100k.
+* BM25 parameters (k1=1.2, b=0.75) are fixed defaults, not tuned on relevance
+  judgments.
+
+== Trade-offs
+
+Recall quality is approximate by design; RRF is a robust but uncalibrated fusion
+method chosen for simplicity. The `VectorIndex` Protocol keeps the dense store
+swappable without changing the fusion or the retriever.
+
+== Consequences and revisit triggers
+
+`GET /health` reports the retrieval mode via readiness, and `/ask` reports
+`retrieval_mode` as `hybrid` or `bm25_only`. Revisit when the corpus grows past
+brute-force feasibility or when relevance judgments become available for tuning.
+
+== References
+
+* Code: `backend/app/retrieval/hybrid.py`
+* Code: `backend/app/retrieval/bm25.py`
+* Code: `backend/app/retrieval/vector_index.py`
+* Code: `backend/app/retrieval/retriever.py`
+* Code: `backend/app/retrieval/glossary.py`
+* xref:0001-self-contained-architecture.adoc[ADR-0001]

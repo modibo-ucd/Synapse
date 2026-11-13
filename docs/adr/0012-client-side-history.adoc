@@ -1,0 +1,63 @@
+= ADR-0012: Client-side history
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: frontend, state
+
+== Context
+
+The self-contained architecture has no server-side database (ADR-0001), yet the
+UI offers persistent conversation history across reloads. This had to work
+entirely in the browser and survive the small, quota-limited storage available
+to web apps.
+
+== Decision
+
+* `frontend/src/stores/history.ts` persists sessions and turns to
+  `localStorage` via Zustand's `persist` middleware and a safe-storage adapter
+  (`frontend/src/lib/storage/safeStorage.ts`).
+* Hard caps bound growth: 50 sessions and 200 turns, with the oldest turns
+  evicted first, and stored answers are compacted (excerpts trimmed beyond the
+  first chunks) via `compactForStorage`.
+* A quota-exceeded fallback drops the oldest half of the sessions and, if
+  storage still fails, surfaces a warning via the UI store.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Server-side sessions in a database | Rich history, multi-device | Requires a database and violates the self-contained decision (ADR-0001).
+| In-memory only (no persistence) | Simplest | History is lost on reload, which the UX requirements reject.
+| IndexedDB | Larger quota, structured storage | More code for no need; localStorage plus caps is sufficient.
+|===
+
+== Pros
+
+* No server state, credentials or session management.
+* Quota handling keeps the app working even when storage is nearly full.
+* The caps prevent unbounded growth.
+
+== Cons
+
+* History is per-browser and lost if the user clears site data or switches
+  devices.
+* Large responses must be compacted to fit quota, so stored history is a
+  trimmed copy.
+
+== Trade-offs
+
+Durability and cross-device sync were traded for a zero-backend, privacy-friendly
+history that matches the self-contained architecture.
+
+== Consequences and revisit triggers
+
+Revisit if server-side history or sync becomes a requirement; the store's
+interface already isolates persistence, so a backend could be added behind it.
+
+== References
+
+* Code: `frontend/src/stores/history.ts`
+* Code: `frontend/src/stores/ui.ts`
+* Code: `frontend/src/lib/storage/safeStorage.ts`
+* xref:0001-self-contained-architecture.adoc[ADR-0001]

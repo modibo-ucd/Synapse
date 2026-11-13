@@ -1,0 +1,65 @@
+= ADR-0011: Design tokens and theming
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: frontend, design
+
+== Context
+
+The UI specification fixed a palette of exactly nine hex values and required a
+polished "wellness" aesthetic with light and dark themes, glass overlays and a
+contrast guarantee. Theming had to be flash-free and respect the OS preference.
+
+== Decision
+
+* The nine brand hexes are defined once in `frontend/tailwind.config.ts` and
+  mirrored as CSS custom properties in `frontend/src/index.css`.
+* Semantic tokens (`app`, `surface`, `ink`, `accent`, ...) are derived with
+  CSS `color-mix()` from the brand colors and switch when the `dark` class is
+  on `document.documentElement`.
+* `useTheme` persists the preference (`system`, `light`, `dark`) and toggles
+  the class; `frontend/public/theme-init.js` applies the saved theme before
+  first paint to avoid a flash.
+* A contrast test (`frontend/src/lib/contrast.test.ts`) enforces WCAG contrast
+  over the palette; tints/shades come only from `color-mix()` of the brand
+  hexes with white/black.
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Ad hoc hex values inline | Fast to write | No single source of truth; drift and contrast regressions.
+| Tailwind v4 / CSS-only theming | Modern toolchain | v4 changed config semantics; the palette requirement mapped cleanly onto v3.
+| CSS-in-JS | Component-scoped tokens | Extra runtime and build complexity for no benefit at this scale.
+|===
+
+== Pros
+
+* One palette source, mirrored between Tailwind and raw CSS, prevents drift.
+* `color-mix()` keeps every derived shade within the sanctioned hues.
+* The contrast test makes the accessibility guarantee executable.
+
+== Cons
+
+* Dark-mode variants are hand-derived tokens, so adding a color requires
+  updating both the config and the CSS variables.
+
+== Trade-offs
+
+Flexibility in adding arbitrary colors was traded for a disciplined, tested
+palette that matches the specification exactly.
+
+== Consequences and revisit triggers
+
+Revisit if the design system grows beyond nine hues or needs more granular
+semantic roles; the token indirection already centralizes such changes.
+
+== References
+
+* Code: `frontend/tailwind.config.ts`
+* Code: `frontend/src/index.css`
+* Code: `frontend/src/hooks/useTheme.ts`
+* Code: `frontend/public/theme-init.js`
+* Code: `frontend/src/lib/contrast.ts`
+* Code: `frontend/src/lib/contrast.test.ts`

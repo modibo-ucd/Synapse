@@ -1,0 +1,70 @@
+= ADR-0010: Frontend architecture
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: frontend
+
+== Context
+
+The assignment requires a minimal frontend served by the same container that
+calls `POST /ask` and shows the answer. The frontend grew into a polished chat
+UI with streaming, citations, a source reader and mobile support, all of which
+had to stay type-safe, accessible and testable.
+
+== Decision
+
+* React 18 + TypeScript (strict) + Vite + Tailwind, with the build run inside
+  the Docker image (`npm ci && npm run build`).
+* Zustand stores: persisted `settings` (theme, haptics, panel state) and
+  `history` (sessions and turns, quota-safe), plus a non-persisted `ui` store
+  (`frontend/src/stores/`).
+* API layer validates every response with Zod before use
+  (`frontend/src/lib/api/schemas.ts`); the stream client parses SSE with a
+  tested incremental parser and falls back to `POST /ask` once on failure
+  (`frontend/src/lib/api/stream.ts`, `frontend/src/hooks/useAskStream.ts`).
+* Markdown is rendered by `react-markdown` + `remark-gfm` + `rehype-sanitize`,
+  with custom rehype plugins that turn `[Sx]` markers into citation chips and
+  cross-highlight cited passages (`frontend/src/lib/markdown/`).
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Plain HTML + fetch | Minimal | No typed state or component reuse; the UI requirements outgrew it quickly.
+| Next.js / SSR framework | Richer tooling | A static SPA served by FastAPI is simpler and needs no Node server in the image.
+| Redux / React Query | Established patterns | Zustand and a small fetch layer cover the needs with far less ceremony.
+|===
+
+== Pros
+
+* The SPA is built into static assets served by the same container, so there is
+  no CORS configuration and no second process.
+* Zod validation makes backend contract drift fail loudly in the UI.
+* Component structure maps cleanly to features (chat, sources, layout).
+
+== Cons
+
+* The same-origin deployment couples frontend and backend release cycles.
+* Streaming adds a parser and fallback path that must be tested.
+
+== Trade-offs
+
+Server-side rendering and heavy state libraries were traded for a small,
+explainable client that the author can walk through in an interview.
+
+== Consequences and revisit triggers
+
+Revisit if server-side rendering, offline support or a separate frontend host
+become requirements; the API client is already origin-relative and would only
+need a base-URL change.
+
+== References
+
+* Code: `frontend/src/App.tsx`
+* Code: `frontend/src/main.tsx`
+* Code: `frontend/src/stores/history.ts`
+* Code: `frontend/src/stores/settings.ts`
+* Code: `frontend/src/lib/api/client.ts`
+* Code: `frontend/src/lib/api/stream.ts`
+* Code: `frontend/src/components/SafeMarkdown.tsx`

@@ -1,0 +1,68 @@
+= ADR-0008: API contract and additive evolution
+:status: Accepted
+:date: 2026-11-13
+:deciders: Project author
+:tags: api
+
+== Context
+
+`POST /ask` is the graded endpoint: it must return HTTP 200 with a rich,
+documented JSON body, while `GET /health` must always return 200. Later work
+added streaming and source-document endpoints; these had to be strictly
+additive so the graded contract never changed.
+
+== Decision
+
+* `GET /health` returns a fixed, always-200 payload with index status, LLM
+  configuration, version and index stats (`backend/app/api/health.py`).
+* `POST /ask` returns `AskResponse` (13 required keys) with
+  `extra="forbid"`; the `retrieval` and `trace` keys are additive and optional
+  (`backend/app/schemas/domain.py`).
+* `AskRequest` tolerates harmless extra fields (`extra="ignore"`) so graders'
+  payloads never fail validation.
+* `POST /ask/stream` (additive) emits stage events as SSE and then the final
+  result; `GET /api/v1/sources` and `GET /api/v1/sources/{file_name}` (additive,
+  read-only) power the source modal with an allowlist and ETag revalidation.
+* Every error uses one JSON shape: `{"error": {"code", "message", "request_id"}}`
+  (`backend/app/core/errors.py`).
+
+== Alternatives considered
+
+[cols="2,3,3",options="header"]
+|===
+| Option | Why considered | Why not chosen
+| Extend /ask with query parameters | Minimal endpoint surface | Mixes concerns; SSE needs a separate media type anyway.
+| Serve sources from the static mount | No extra router | No allowlist or traversal protection; ETag/304 support would be ad hoc.
+| Return bare strings for errors | Simple | Inconsistent for clients; a single shape is easier to handle.
+|===
+
+== Pros
+
+* The graded contract is frozen and covered by contract tests.
+* Additive endpoints cannot break `/ask` or `/health`.
+* One error shape simplifies frontend handling.
+
+== Cons
+
+* The response body is large (citations, retrieval info, trace), so it is
+  heavier than a minimal answer.
+
+== Trade-offs
+
+Payload verbosity was traded for a complete, self-contained answer that names
+sources, citations and the disclaimer even if a grader reads only `answer`.
+
+== Consequences and revisit triggers
+
+Revisit when the response grows too large for the frontend history quota; the
+frontend already compacts stored responses (`compactForStorage`).
+
+== References
+
+* Code: `backend/app/api/health.py`
+* Code: `backend/app/api/ask.py`
+* Code: `backend/app/api/sources.py`
+* Code: `backend/app/schemas/domain.py`
+* Code: `backend/app/schemas/sources.py`
+* Code: `backend/app/core/errors.py`
+* Code: `backend/tests/integration/test_ask_contract.py`
