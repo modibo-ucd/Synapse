@@ -96,9 +96,7 @@ Work in priority order. Do not start a tier until the previous one is green (tes
 │   │   └── agent/                  # pipeline.py, plan.py, tools/, review.py, answer.py, events.py, prompts/
 │   └── tests/                      # unit/, integration/, eval/, fakes/
 ├── frontend/src/                   # components/, features/chat/, lib/, types/
-├── scripts/                        # probe_llm.py and other dev helpers
-├── e2e/                            # Optional Playwright smoke test
-└── docs/                           # requirements.md, PROGRESS.md, ARCHITECTURE.md, WALKTHROUGH.md, PRESENTATION.md
+└── docs/                           # adr/, eval_results.md, ai/ (working notes)
 ```
 
 ---
@@ -316,8 +314,8 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
 
 ## Session Protocol
 
-- Start of every task: read `.clinerules`, `docs/requirements.md`, `docs/PROGRESS.md`.
-- End of every task: run the relevant checks (`ruff`, `mypy`, `pytest`, `tsc`, `eslint`, `vitest` as applicable), update `docs/PROGRESS.md`, and summarize in at most 10 lines.
+- Start of every task: read `.clinerules`, `docs/ai/requirements.md`, `docs/ai/PROGRESS.md`.
+- End of every task: run the relevant checks (`ruff`, `mypy`, `pytest`, `tsc`, `eslint`, `vitest` as applicable), update `docs/ai/PROGRESS.md`, and summarize in at most 10 lines.
 
 ---
 
@@ -330,13 +328,10 @@ async def run_pipeline(question: str, ctx: PipelineContext) -> AskResult:
 | `OPENAI_MODEL`                                | -                          | Chat model (must be one of the allowed models) |
 | `OPENAI_EMBEDDING_MODEL`                      | `text-embedding-3-small`   | Embedding model                                |
 | `LLM_PROVIDER`                                | `openai`                   | `fake` for tests/E2E only                      |
-| `PLAN_MODEL` / `REVIEW_MODEL` / `DRAFT_MODEL` | `OPENAI_MODEL`             | Optional per-stage overrides                   |
 | `CORPUS_DIR`                                  | `/app/corpus`              | Corpus location inside the container           |
 | `CACHE_DIR`                                   | `/tmp/synapse-cache`       | Embedding cache                                |
 | `MAX_SUB_GOALS` / `MAX_TOOL_CALLS`            | `5` / `4`                  | Pipeline budgets                               |
 | `REQUEST_TIMEOUT_S`                           | `90`                       | Hard request timeout                           |
-| `RATE_LIMIT_PER_MIN`                          | `0` (off) or generous      | Optional in-process limit                      |
-| `SEMANTIC_CACHE_ENABLED`                      | `false`                    | Optional P2 cache                              |
 | `LOG_LEVEL`                                   | `INFO`                     | Logging level                                  |
 
 ---
