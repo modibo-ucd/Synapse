@@ -1,5 +1,5 @@
 // API types mirroring the backend contract. snake_case is intentional;
-// every additive (Phase A) field is optional.
+// additive response fields are optional.
 
 export type StageName = 'plan' | 'retrieve' | 'tools' | 'review' | 'answer'
 

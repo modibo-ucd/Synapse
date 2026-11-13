@@ -1,4 +1,4 @@
-# Golden evaluation questions for the eval harness (Task 8).
+# Golden evaluation questions for the eval harness.
 #
 # ``kind`` drives scoring:
 #   answerable             -> every expected file appears in `sources`, every

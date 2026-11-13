@@ -269,7 +269,7 @@ class StageTraceInfo(BaseModel):
 
 
 class AskResponse(BaseModel):
-    """The full POST /ask response (Section 9 contract)."""
+    """The full POST /ask response."""
 
     model_config = ConfigDict(extra="forbid")
 

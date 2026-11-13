@@ -1,5 +1,5 @@
-// Reading-time estimation and formatting. Phase C only needs the label
-// helpers; Phase E will reuse these for the progress bar.
+// Reading-time estimation and formatting, used by the answer card label and
+// the reading progress bar.
 
 const WORDS_PER_MINUTE = 200
 
