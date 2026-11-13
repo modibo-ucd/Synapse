@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 
+import { haptic } from '../lib/haptics'
+import { useSettingsStore } from '../stores/settings'
 import type { Citation } from '../types/api'
 
 interface CitationChipProps {
@@ -15,6 +17,7 @@ interface CitationChipProps {
 export function CitationChip({ id, citation, onOpen }: CitationChipProps) {
   const [open, setOpen] = useState(false)
   const closeTimer = useRef<number | null>(null)
+  const haptics = useSettingsStore((state) => state.haptics)
 
   if (!citation) {
     return <span className="text-ink-muted">{`[${id}]`}</span>
@@ -48,7 +51,10 @@ export function CitationChip({ id, citation, onOpen }: CitationChipProps) {
         onMouseLeave={scheduleClose}
         onFocus={openPopover}
         onBlur={scheduleClose}
-        onClick={() => onOpen?.(citation)}
+        onClick={() => {
+          haptic(haptics)
+          onOpen?.(citation)
+        }}
         className="mx-0.5 rounded bg-accent-soft px-1 align-super text-xs font-medium text-accent focus:outline-none"
       >
         {id}

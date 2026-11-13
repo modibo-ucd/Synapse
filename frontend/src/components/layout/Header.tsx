@@ -3,6 +3,7 @@ import { History, PanelRight } from 'lucide-react'
 import { useHistoryStore } from '../../stores/history'
 import { useUiStore } from '../../stores/ui'
 import { ThemeToggle } from './ThemeToggle'
+import { HapticsToggle } from './HapticsToggle'
 
 export function Header() {
   const drawer = useUiStore((state) => state.drawer)
@@ -40,6 +41,7 @@ export function Header() {
         >
           <PanelRight className="h-5 w-5" aria-hidden="true" />
         </button>
+        <HapticsToggle />
         <ThemeToggle />
       </div>
     </header>

@@ -40,7 +40,7 @@ export function Drawer({ side, open, onClose, label, children }: DrawerProps) {
       aria-label={label}
       onClose={handleClose}
       onClick={handleScrimClick}
-      className={`drawer-sheet drawer-sheet-${side} bg-side text-ink ${
+      className={`drawer-sheet drawer-sheet-${side} text-ink ${
         side === 'left' ? 'animate-sheet-in-left' : 'animate-sheet-in-right'
       }`}
     >

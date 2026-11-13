@@ -1,4 +1,6 @@
+import { haptic } from '../lib/haptics'
 import { sourceTypeFromFileName, sourceTypeLabel } from '../lib/sourceMeta'
+import { useSettingsStore } from '../stores/settings'
 import { useUiStore } from '../stores/ui'
 import type { Citation, RetrievedChunk } from '../types/api'
 
@@ -10,9 +12,11 @@ interface SourceBadgesProps {
 
 /** One badge per source file; clicking opens the source modal on that file. */
 export function SourceBadges({ sources, citations, retrievedChunks }: SourceBadgesProps) {
+  const haptics = useSettingsStore((state) => state.haptics)
   const setSourceView = useUiStore((state) => state.setSourceView)
 
   const openSource = (fileName: string) => {
+    haptic(haptics)
     const primary = citations
       .filter((citation) => citation.source_file === fileName)
       .map((citation) => citation.chunk_id)

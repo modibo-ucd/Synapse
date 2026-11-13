@@ -2,7 +2,7 @@
 
 ## Status
 
-Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell), C (chat, history, answer cards), D (source badges, citations, modal, cross-highlight) and E (reading progress, honest stage timeline, zen mode) completed 2026-11-13. Next: Phase F (mobile polish).
+Tasks 0–14 and 16 completed 2026-11-12. Task 15 (semantic cache + limits) pending. FRONTEND Phases A (backend API), B (foundation/theme/shell), C (chat, history, answer cards), D (source badges, citations, modal, cross-highlight), E (reading progress, honest stage timeline, zen mode) and F (mobile drawers, safe areas and haptics) completed 2026-11-13. Next: Phase G (quality gate).
 
 ## Checklist
 
@@ -499,6 +499,32 @@ Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vi
 repo is CRLF while prettier defaults to LF — a pre-existing condition, not introduced
 here).
 
+
+## Phase F — mobile drawers, safe areas and haptics — 2026-11-13
+
+- **Drawers** — `.drawer-sheet` is now a frosted glass surface
+  (`color-mix(var(--c-side) 88%, transparent)` + 24px blur) and the scrim is
+  `backdrop-blur-md` (12px). The native `<dialog>` keeps Esc/scrim close, focus
+  return, scroll lock and `.sheet-pad` safe-area padding; the docked ≥1024px
+  layout is unchanged.
+- **Viewport / keyboard** — `useAutoScroll` now listens to `visualViewport`
+  `resize` and re-pins the feed to the bottom when the keyboard opens and the
+  user was near it; the shell still never scrolls (only the feed does).
+- **Tap targets** — the Ask / Stop buttons are now 44px (`h-11`); header toggles
+  were already `h-11 w-11`. 16px inputs were already in place.
+- **Haptics** — `haptic()` (feature-detected, reduced-motion aware) is now called
+  on send, theme toggle, source-modal open (badges, citation chips, trace chunk
+  rows) and when re-enabling via the new `HapticsToggle` in the header (default
+  on). Added `lib/haptics.test.ts` (enabled / feature / reduced-motion gating)
+  and `HapticsToggle.test.tsx`.
+- **Responsive matrix** — implemented via Tailwind breakpoints (`lg` docked,
+  `<lg` drawers) and covered by the build + tests. The 320/390/768/1280 Chrome
+  DevTools emulation pass (light/dark, reduced-motion on/off) and the iOS
+  keyboard real-device check are recorded as manual items for Phase G's browser
+  pass.
+
+Checks: `npm run build` ✓, `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vitest
+run` ✓ (125/125, 29 files), `pytest` ✓ (207).
 
 ## Known issues
 

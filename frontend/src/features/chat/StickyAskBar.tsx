@@ -86,7 +86,7 @@ export function StickyAskBar({
                 type="button"
                 data-testid="stop-button"
                 onClick={onStop}
-                className="rounded-xl bg-surface px-4 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-line hover:bg-accent-soft"
+                className="flex h-11 items-center rounded-xl bg-surface px-4 text-sm font-medium text-ink ring-1 ring-inset ring-line hover:bg-accent-soft"
               >
                 Stop
               </button>
@@ -96,7 +96,7 @@ export function StickyAskBar({
                 data-testid="submit-button"
                 onClick={submit}
                 disabled={disabled || value.trim().length === 0}
-                className="rounded-xl bg-action px-4 py-2 text-sm font-medium text-action-ink hover:bg-action-hover disabled:opacity-50"
+                className="flex h-11 items-center rounded-xl bg-action px-4 text-sm font-medium text-action-ink hover:bg-action-hover disabled:opacity-50"
               >
                 Ask
               </button>

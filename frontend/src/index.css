@@ -194,7 +194,9 @@ tr[data-highlight] {
   margin: 0;
   padding: 0;
   border: none;
-  background: transparent;
+  background: color-mix(in srgb, var(--c-side) 88%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
   width: min(100vw - 2rem, 22.5rem);
   height: 100dvh;
   max-width: none;
@@ -210,8 +212,8 @@ tr[data-highlight] {
 }
 .drawer-sheet::backdrop {
   background: color-mix(in srgb, var(--night) 45%, transparent);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -242,8 +244,8 @@ tr[data-highlight] {
 }
 .source-modal::backdrop {
   background: color-mix(in srgb, var(--night) 45%, transparent);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 @media (max-width: 1023px) {
   .source-modal {

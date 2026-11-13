@@ -1,4 +1,6 @@
 import { useHealth, type HealthSnapshot } from '../hooks/useHealth'
+import { haptic } from '../lib/haptics'
+import { useSettingsStore } from '../stores/settings'
 import { useUiStore } from '../stores/ui'
 import type { RetrievedChunk, ReviewInfo, StageTrace, ToolCallInfo, Usage } from '../types/api'
 import type { Turn } from '../types/ui'
@@ -171,9 +173,11 @@ interface TracePanelProps {
 export function TracePanel({ turn }: TracePanelProps) {
   const health = useHealth()
   const setSourceView = useUiStore((state) => state.setSourceView)
+  const haptics = useSettingsStore((state) => state.haptics)
   const response = turn?.response
 
   const openChunk = (chunk: RetrievedChunk) => {
+    haptic(haptics)
     setSourceView({
       fileName: chunk.source_file,
       primaryChunkIds: [chunk.chunk_id],

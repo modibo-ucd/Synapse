@@ -28,4 +28,18 @@ export function useAutoScroll<T extends HTMLElement>(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
+
+  // When the keyboard opens (visual viewport shrinks), keep the feed pinned to
+  // the bottom if the user was already near it.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const onResize = () => {
+      if (stickRef.current && ref.current) {
+        ref.current.scrollTop = ref.current.scrollHeight
+      }
+    }
+    vv.addEventListener('resize', onResize)
+    return () => vv.removeEventListener('resize', onResize)
+  }, [ref])
 }
